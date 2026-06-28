@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve Herdr Workdir Picker.
+Thanks for helping improve Herdr Picker Plus.
 
 ## Development
 

@@ -26,12 +26,12 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          mkdir -p dist/herdr-workdir-picker
-          cp target/release/herdr-workdir-picker dist/herdr-workdir-picker/
-          cp README.md LICENSE CHANGELOG.md herdr-plugin.toml dist/herdr-workdir-picker/
-          cp -R examples dist/herdr-workdir-picker/
-          tar -C dist -czf herdr-workdir-picker-${{ matrix.name }}.tar.gz herdr-workdir-picker
+          mkdir -p dist/herdr-picker-plus
+          cp target/release/herdr-picker-plus dist/herdr-picker-plus/
+          cp README.md LICENSE CHANGELOG.md herdr-plugin.toml dist/herdr-picker-plus/
+          cp -R examples dist/herdr-picker-plus/
+          tar -C dist -czf herdr-picker-plus-${{ matrix.name }}.tar.gz herdr-picker-plus
       - uses: softprops/action-gh-release@v2
         with:
-          files: herdr-workdir-picker-${{ matrix.name }}.tar.gz
+          files: herdr-picker-plus-${{ matrix.name }}.tar.gz
           generate_release_notes: true

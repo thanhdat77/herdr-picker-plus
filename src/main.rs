@@ -34,14 +34,14 @@ fn main() {
         Some("ui") => run_ui(),
         Some("list") => debug_list(),
         _ => {
-            eprintln!("usage: herdr-workdir-picker <open|ui|list>");
+            eprintln!("usage: herdr-picker-plus <open|ui|list>");
             process::exit(2);
         }
     }
 }
 
 fn open_picker() -> ! {
-    let plugin = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| "fenix.workdir-picker".into());
+    let plugin = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| "herdr-picker-plus".into());
     let status = Command::new(herdr_bin())
         .args([
             "plugin",
@@ -70,7 +70,7 @@ fn run_ui() -> ! {
     app.refresh();
 
     if let Err(e) = tui_loop(&mut app) {
-        eprintln!("workdir picker error: {e}");
+        eprintln!("picker plus error: {e}");
         process::exit(1);
     }
     process::exit(0);
@@ -440,7 +440,7 @@ fn draw(f: &mut Frame, app: &App) {
     f.render_widget(Clear, area);
     let outer = Block::default()
         .style(Style::default().bg(app.theme.panel_bg))
-        .title(" Herdr Workdir Picker ")
+        .title(" Herdr Picker Plus ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(app.theme.accent));
     let inner = outer.inner(area);
@@ -1322,7 +1322,7 @@ fn herdr_bin() -> String {
 fn plugin_config_dir() -> PathBuf {
     env::var("HERDR_PLUGIN_CONFIG_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| home().join(".config/herdr/plugins/config/fenix.workdir-picker"))
+        .unwrap_or_else(|_| home().join(".config/herdr/plugins/config/herdr-picker-plus"))
 }
 fn herdr_plus_projects_dir() -> PathBuf {
     home().join(".config/herdr/plugins/config/cloudmanic.herdr-plus/projects")

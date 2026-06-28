@@ -1,8 +1,8 @@
-id = "fenix.workdir-picker"
-name = "Workdir Picker"
+id = "herdr-picker-plus"
+name = "Picker Plus"
 version = "0.1.0"
 min_herdr_version = "0.7.0"
-description = "Herdr-native workdir picker: search workspaces, agents, Herdr Plus projects, zoxide, and roots; then focus or create workspaces."
+description = "Herdr-native picker plus: search workspaces, agents, Herdr Plus projects, zoxide, and roots; then focus or create workspaces."
 platforms = ["linux", "macos"]
 
 [[build]]
@@ -10,12 +10,12 @@ command = ["cargo", "build", "--release"]
 
 [[actions]]
 id = "open"
-title = "Workdir Picker: open"
+title = "Picker Plus: open"
 contexts = ["workspace", "global"]
-command = ["./target/release/herdr-workdir-picker", "open"]
+command = ["./target/release/herdr-picker-plus", "open"]
 
 [[panes]]
 id = "picker"
-title = "Workdir Picker"
+title = "Picker Plus"
 placement = "overlay"
-command = ["./target/release/herdr-workdir-picker", "ui"]
+command = ["./target/release/herdr-picker-plus", "ui"]

@@ -1,7 +1,4 @@
-# Herdr Workdir Picker
-
-[![CI](https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+# Herdr Picker Plus
 
 A Herdr-native command palette for jumping to work directories.
 
@@ -64,8 +61,8 @@ Herdr's built-in `prefix+g` is excellent for navigating things that already exis
 ### From source
 
 ```bash
-git clone https://github.com/thanhdat77/herdr-picker-plus.git
-cd herdr-workdir-picker
+git clone <repo-url>
+cd herdr-picker-plus
 cargo build --release
 herdr plugin link "$PWD"
 ```
@@ -75,13 +72,13 @@ herdr plugin link "$PWD"
 Download the archive for your platform from GitHub Releases, extract it, then link the extracted directory:
 
 ```bash
-herdr plugin link /path/to/herdr-workdir-picker
+herdr plugin link /path/to/herdr-picker-plus
 ```
 
 Run once without binding:
 
 ```bash
-herdr plugin action invoke fenix.workdir-picker.open
+herdr plugin action invoke herdr-picker-plus.open
 ```
 
 ## Bind to `prefix+t`
@@ -92,8 +89,8 @@ Add to `~/.config/herdr/config.toml`:
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
-command = "fenix.workdir-picker.open"
-description = "workdir picker"
+command = "herdr-picker-plus.open"
+description = "picker plus"
 ```
 
 Reload Herdr:
@@ -107,7 +104,7 @@ herdr server reload-config
 Find the managed plugin config directory:
 
 ```bash
-herdr plugin config-dir fenix.workdir-picker
+herdr plugin config-dir herdr-picker-plus
 ```
 
 On first run, the plugin creates `config.toml` from [`examples/default-config.toml`](examples/default-config.toml).
@@ -188,19 +185,19 @@ workspace, open, project, zoxide, root, agent
 List all candidates without opening the TUI:
 
 ```bash
-./target/release/herdr-workdir-picker list
+./target/release/herdr-picker-plus list
 ```
 
 Show plugin actions:
 
 ```bash
-herdr plugin action list --plugin fenix.workdir-picker
+herdr plugin action list --plugin herdr-picker-plus
 ```
 
 Unlink local plugin:
 
 ```bash
-herdr plugin unlink fenix.workdir-picker
+herdr plugin unlink herdr-picker-plus
 ```
 
 ## Design notes
