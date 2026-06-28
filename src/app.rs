@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs,
     path::Path,
 };
 
@@ -9,7 +10,7 @@ use crate::{
     integrations::{command, herdr_plus},
     matcher::match_score,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
-    paths::{canonical_str, herdr_plus_quick_actions_dir},
+    paths::{canonical_str, herdr_plus_quick_actions_dir, home},
     sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
 };
@@ -80,6 +81,9 @@ impl App {
 
     pub(crate) fn apply_filter(&mut self) {
         let query = Query::parse(&self.query);
+        let agent_view = query.all_agents
+            || (self.source_filter == Some(Source::Agent) && query.plain.is_empty());
+        let use_agent_priority = agent_view && herdr_agent_panel_sort() == "priority";
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
@@ -91,12 +95,13 @@ impl App {
                 continue;
             }
             let hay = e.haystack();
-            let source_bonus = self.config.picker.source_bonus(&e.source);
+            let bonus = self.config.picker.source_bonus(&e.source)
+                + query.score_bonus(e, use_agent_priority);
             if query.plain.is_empty() {
-                scored.push((source_bonus, idx));
+                scored.push((bonus, idx));
             } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &query.plain)
             {
-                scored.push((score + source_bonus, idx));
+                scored.push((score + bonus, idx));
             }
         }
         scored.sort_by(|(score_a, idx_a), (score_b, idx_b)| {
@@ -108,7 +113,13 @@ impl App {
                         .source_rank(&self.entries[*idx_a].source)
                         .cmp(&self.config.picker.source_rank(&self.entries[*idx_b].source))
                 })
-                .then_with(|| self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title))
+                .then_with(|| {
+                    if agent_view {
+                        idx_a.cmp(idx_b)
+                    } else {
+                        self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title)
+                    }
+                })
         });
         self.filtered = scored.into_iter().map(|(_, idx)| idx).collect();
         self.selected = 0;
@@ -277,7 +288,7 @@ struct Query {
     path: Vec<String>,
     status: Vec<String>,
     attention_agents: bool,
-    other_agents: bool,
+    all_agents: bool,
 }
 
 impl Query {
@@ -289,7 +300,7 @@ impl Query {
             path: vec![],
             status: vec![],
             attention_agents: false,
-            other_agents: false,
+            all_agents: false,
         };
         let mut plain = Vec::new();
         for raw in input.split_whitespace() {
@@ -298,7 +309,7 @@ impl Query {
                 push_token(&mut query.agent, rest);
             } else if let Some(rest) = token.strip_prefix('@') {
                 if rest.is_empty() {
-                    query.other_agents = true;
+                    query.all_agents = true;
                 } else {
                     push_token(&mut query.workspace_or_status, rest);
                 }
@@ -320,16 +331,14 @@ impl Query {
 
     fn filters_match(&self, entry: &Entry) -> bool {
         let agent_query = self.attention_agents
-            || self.other_agents
+            || self.all_agents
             || !self.agent.is_empty()
+            || !self.workspace_or_status.is_empty()
             || !self.status.is_empty();
         if agent_query && entry.source != Source::Agent {
             return false;
         }
         if self.attention_agents && !agent_needs_action(entry) {
-            return false;
-        }
-        if self.other_agents && agent_needs_action(entry) {
             return false;
         }
         all_match(&self.agent, &agent_text(entry))
@@ -340,6 +349,14 @@ impl Query {
             )
             && all_match(&self.path, &entry.path.display().to_string())
             && all_match(&self.status, &status_text(entry))
+    }
+
+    fn score_bonus(&self, entry: &Entry, use_agent_priority: bool) -> i64 {
+        if entry.source == Source::Agent && use_agent_priority {
+            agent_status_bonus(entry)
+        } else {
+            0
+        }
     }
 }
 
@@ -363,10 +380,16 @@ fn all_match_either(tokens: &[String], left: &str, right: &str) -> bool {
 }
 
 fn agent_needs_action(entry: &Entry) -> bool {
+    agent_status_bonus(entry) >= 8_000
+}
+
+fn agent_status_bonus(entry: &Entry) -> i64 {
     let status = status_text(entry);
-    [
-        "block",
-        "done",
+    if status.contains("block") {
+        10_000
+    } else if status.contains("done") || status.contains("complete") {
+        9_000
+    } else if [
         "need",
         "attention",
         "review",
@@ -378,6 +401,11 @@ fn agent_needs_action(entry: &Entry) -> bool {
     ]
     .iter()
     .any(|needle| status.contains(needle))
+    {
+        8_000
+    } else {
+        1_000
+    }
 }
 
 fn status_text(entry: &Entry) -> String {
@@ -406,6 +434,24 @@ fn workspace_text(entry: &Entry) -> String {
         entry.workspace_label.as_deref().unwrap_or(""),
         entry.title
     )
+}
+
+fn herdr_agent_panel_sort() -> String {
+    let path = std::env::var("XDG_CONFIG_HOME")
+        .map(|xdg| Path::new(&xdg).join("herdr/config.toml"))
+        .unwrap_or_else(|_| home().join(".config/herdr/config.toml"));
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| s.parse::<toml::Value>().ok())
+        .and_then(|v| {
+            v.get("ui")
+                .and_then(|x| x.as_table())
+                .and_then(|x| x.get("agent_panel_sort"))
+                .or_else(|| v.get("agent_panel_sort"))
+                .and_then(|x| x.as_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "spaces".into())
 }
 
 fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: Vec<Entry>) {
@@ -489,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    fn agent_shortcuts_split_attention_and_other_statuses() {
+    fn agent_shortcuts_filter_and_prioritize_statuses() {
         let idle = agent_entry_with_status("idle");
         let blocked = agent_entry_with_status("blocking");
         let done = agent_entry_with_status("done");
@@ -498,9 +544,11 @@ mod tests {
         assert!(Query::parse("#").filters_match(&done));
         assert!(!Query::parse("#").filters_match(&idle));
         assert!(Query::parse("@").filters_match(&idle));
-        assert!(!Query::parse("@").filters_match(&blocked));
+        assert!(Query::parse("@").filters_match(&blocked));
         assert!(Query::parse("@idle").filters_match(&idle));
         assert!(Query::parse("@Dotfiles").filters_match(&idle));
+        assert!(agent_status_bonus(&blocked) > agent_status_bonus(&done));
+        assert!(agent_status_bonus(&done) > agent_status_bonus(&idle));
     }
 
     #[test]

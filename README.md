@@ -154,9 +154,9 @@ prefix+t
 | `Ctrl-R` | roots only |
 | `Ctrl-A` | agents only |
 | `#` | show agents needing user action, for example blocking/done/review |
-| `@` | show other agents, for example idle/running |
+| `@` | same as `Ctrl-A`: show all agents, using Herdr's agent panel sort |
 | `!text` | match agent name, for example `!claude` |
-| `@text` | match workspace/session label/id or status, for example `@dotfiles` or `@idle` |
+| `@text` | agent-only match by workspace/session label/id or status, for example `@dotfiles` or `@idle` |
 | `/text` | match cwd/path, for example `/chatbot` |
 | `#text` | match agent status, for example `#done` |
 | `Ctrl-O` | toggle preview |
@@ -227,13 +227,13 @@ agents = true
 
 ### Agent search
 
-Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search.
+Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut and `Ctrl-A` both use Herdr's `agent_panel_sort` setting; with `agent_panel_sort = "priority"`, blocking agents rank first, done agents second, then the rest.
 
 Useful queries:
 
 ```text
 #                 # agents needing user action: blocking/done/review/etc.
-@                 # other agents: idle/running/etc.
+@                 # all agents, same as Ctrl-A
 !claude @Dotfiles /dotfiles
 !codex /chatbot
 #done

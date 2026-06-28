@@ -48,4 +48,4 @@ Picker Plus owns notifications for integration open success/failure so plugin au
 
 Use visible Herdr state first: agent name, workspace label/id, cwd, pane/tab/terminal ids, status. Add token filters for precision and aliases for user memory. Do not invent session names inside Picker Plus; aliases are search-only.
 
-`#` is reserved for agents needing user action (blocking/done/review/request/error). `@` without text shows other agents; `@text` still matches workspace/session label/id and also status text for fast navigation.
+`#` is reserved for agents needing user action (blocking/done/review/request/error). `@` without text is equivalent to Ctrl-A: main agent view, using Herdr `agent_panel_sort`. If Herdr is set to `priority`, block ranks first, done second, then the rest. `@text` stays agent-only and matches workspace/session label/id or status text for fast navigation.
