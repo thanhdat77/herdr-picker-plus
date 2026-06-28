@@ -1,22 +1,23 @@
 # Herdr Picker Plus
 
-Herdr Picker Plus is a Herdr-native **picker center**: one overlay for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
+Herdr Picker Plus is a Herdr-native **picker center**: one overlay for jumping to workspaces, projects, directories, servers, agents, and Herdr Plus actions.
 
 ```text
 prefix+t -> search -> Enter
 ```
 
-It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of only selecting a path, it can focus existing Herdr state, create workspaces, apply Herdr Plus project layouts, focus agents, and launch Herdr Plus Quick Actions.
+It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of only selecting a path, it can focus existing Herdr state, create workspaces, apply Herdr Plus project layouts, open SSH servers, focus agents, and launch Herdr Plus Quick Actions.
 
 ## Overview
 
 ### What makes it stand out
 
-- **Picker center for Herdr**: one place to search workspaces, projects, directories, agents, and actions.
+- **Picker center for Herdr**: one place to search workspaces, projects, directories, servers, agents, and actions.
 - **Reuse-first workflow**: focuses matching open workspaces without confusing project and directory workspaces that share the same path.
 - **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
 - **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
+- **Fast server access**: `Ctrl-S` filters SSH/manual server entries and opens them in reuse-first Herdr workspaces.
 - **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
 - **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
 - **Plugin integration contract**: other tools can appear in the picker with a simple command/JSON list-open API.
@@ -27,11 +28,22 @@ It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of on
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
+| `server` | `~/.ssh/config` + `[servers]` config | focus/create server workspace + run command |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
 | `agent` | agent panes from `herdr pane list` | focus agent pane |
 | `plugin` | configured `[[integrations]]` commands | run configured open command |
+
+### Fast server access
+
+Server access stays as boring as SSH itself:
+
+- reads hosts from `~/.ssh/config`
+- allows optional `[[servers.entries]]` for hosts or custom commands
+- uses `Ctrl-S` to filter servers only; no extra query prefix
+- creates/focuses Herdr workspaces labeled `server: NAME`
+- uses `~` as the default local cwd, with per-server `cwd` override
 
 ## Requirements
 
@@ -152,6 +164,7 @@ prefix+t
 | `Ctrl-Q` | Herdr Plus Quick Actions only |
 | `Ctrl-Z` | zoxide only |
 | `Ctrl-R` | roots only |
+| `Ctrl-S` | servers only |
 | `Ctrl-A` | agents only |
 | `@` | same as `Ctrl-A`: show all agents, using configured agent sort |
 | `!text` | match agent name, for example `!claude` |
@@ -177,7 +190,7 @@ On first run, the plugin creates `config.toml` from [`examples/default-config.to
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
+source_order = ["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
 agent_sort = "herdr" # herdr | priority | spaces
 
@@ -188,6 +201,11 @@ herdr_plus_quick_actions = true
 zoxide = true
 roots = true
 agents = true
+servers = true
+
+[servers]
+ssh_config = true
+default_cwd = "~"
 
 [theme]
 inherit_herdr = true
@@ -222,7 +240,32 @@ herdr_plus_quick_actions = false
 zoxide = true
 roots = true
 agents = true
+servers = true
 ```
+
+### Server access
+
+Servers come from `~/.ssh/config` by default. Use `Ctrl-S` to show only servers, then type normally to search by name, host, user, tags, or command.
+
+```toml
+[servers]
+ssh_config = true
+default_cwd = "~"
+
+[[servers.entries]]
+name = "prod-api"
+host = "10.0.0.5"
+user = "ubuntu"
+cwd = "~/workspace/ops"
+tags = ["prod", "api"]
+
+[[servers.entries]]
+name = "logs-prod"
+command = "ssh prod-api 'journalctl -fu app'"
+tags = ["prod", "logs"]
+```
+
+Selecting a server focuses an existing `server: NAME` workspace or creates one and runs the SSH/custom command.
 
 ### Agent search
 
@@ -256,7 +299,7 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 
 ```toml
 [picker]
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
+source_order = ["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
 agent_sort = "herdr" # herdr | priority | spaces
 ```
@@ -264,7 +307,7 @@ agent_sort = "herdr" # herdr | priority | spaces
 Accepted names:
 
 ```text
-workspace, open, project, zoxide, root, agent, quick, plugin
+workspace, open, project, server, zoxide, root, agent, quick, plugin
 ```
 
 Set the boost to zero for pure matcher score:

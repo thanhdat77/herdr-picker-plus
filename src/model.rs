@@ -11,6 +11,7 @@ pub(crate) enum Source {
     Zoxide,
     Root,
     Agent,
+    Server,
     QuickAction,
     Integration,
 }
@@ -23,6 +24,7 @@ impl Source {
             Source::Zoxide => "zoxide",
             Source::Root => "root",
             Source::Agent => "agent",
+            Source::Server => "server",
             Source::QuickAction => "quick",
             Source::Integration => "plugin",
         }
@@ -35,6 +37,7 @@ impl Source {
             "zoxide" | "z" => Some(Source::Zoxide),
             "root" | "roots" | "scan" => Some(Source::Root),
             "agent" | "agents" => Some(Source::Agent),
+            "server" | "servers" | "ssh" => Some(Source::Server),
             "quick" | "quick_action" | "quick_actions" | "herdr_plus_quick_actions" => {
                 Some(Source::QuickAction)
             }
@@ -43,10 +46,11 @@ impl Source {
         }
     }
 
-    pub(crate) fn all() -> [Source; 7] {
+    pub(crate) fn all() -> [Source; 8] {
         [
             Source::Workspace,
             Source::Project,
+            Source::Server,
             Source::Zoxide,
             Source::Root,
             Source::Agent,
@@ -69,6 +73,9 @@ pub(crate) enum EntryAction {
         action: String,
     },
     FocusOrCreateDir,
+    OpenServer {
+        command: String,
+    },
     RunCommand {
         command: String,
         notify_success: bool,
@@ -80,6 +87,7 @@ pub(crate) enum EntryAction {
 pub(crate) enum WorkspaceKind {
     Project,
     Dir,
+    Server,
     Unknown,
 }
 

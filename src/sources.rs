@@ -86,8 +86,143 @@ fn workspace_kind(label: &str) -> WorkspaceKind {
         WorkspaceKind::Project
     } else if label.starts_with("dir:") {
         WorkspaceKind::Dir
+    } else if label.starts_with("server:") {
+        WorkspaceKind::Server
     } else {
         WorkspaceKind::Unknown
+    }
+}
+
+pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
+    let mut entries = Vec::new();
+    if config.servers.ssh_config {
+        let path = home().join(".ssh/config");
+        if let Ok(text) = fs::read_to_string(path) {
+            entries.extend(ssh_config_hosts(&text).into_iter().map(|host| {
+                server_entry(
+                    &host.name,
+                    host.hostname.as_deref(),
+                    host.user.as_deref(),
+                    None,
+                    None,
+                    &[],
+                    &config.servers.default_cwd,
+                )
+            }));
+        }
+    }
+    entries.extend(config.servers.entries.iter().map(|server| {
+        server_entry(
+            &server.name,
+            server.host.as_deref(),
+            server.user.as_deref(),
+            server.command.as_deref(),
+            server.cwd.as_deref(),
+            &server.tags,
+            &config.servers.default_cwd,
+        )
+    }));
+    entries
+}
+
+fn server_entry(
+    name: &str,
+    host: Option<&str>,
+    user: Option<&str>,
+    command: Option<&str>,
+    cwd: Option<&str>,
+    tags: &[String],
+    default_cwd: &str,
+) -> Entry {
+    let target = match (user, host) {
+        (Some(user), Some(host)) => format!("{user}@{host}"),
+        (_, Some(host)) => host.to_string(),
+        _ => name.to_string(),
+    };
+    let command = command
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("ssh {target}"));
+    let path = expand_path(cwd.unwrap_or(default_cwd));
+    let subtitle = if command.starts_with("ssh ") {
+        command.clone()
+    } else {
+        format!("cmd: {command}")
+    };
+    let mut search_terms = vec![name.into(), target, command.clone()];
+    if let Some(host) = host {
+        search_terms.push(host.into());
+    }
+    if let Some(user) = user {
+        search_terms.push(user.into());
+    }
+    search_terms.extend(tags.iter().cloned());
+    Entry {
+        source: Source::Server,
+        title: name.into(),
+        subtitle,
+        path,
+        workspace_id: None,
+        workspace_label: Some(format!("server: {name}")),
+        agent_target: None,
+        project: None,
+        action: EntryAction::OpenServer { command },
+        source_label: None,
+        search_terms,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SshHost {
+    name: String,
+    hostname: Option<String>,
+    user: Option<String>,
+}
+
+fn ssh_config_hosts(text: &str) -> Vec<SshHost> {
+    let mut out = Vec::new();
+    let mut names: Vec<String> = Vec::new();
+    let mut hostname: Option<String> = None;
+    let mut user: Option<String> = None;
+
+    for line in text.lines().map(clean_ssh_config_line) {
+        let Some((key, value)) = line.split_once(char::is_whitespace) else {
+            continue;
+        };
+        let key = key.to_ascii_lowercase();
+        let value = value.trim();
+        if key == "host" {
+            flush_ssh_hosts(&mut out, &names, hostname.take(), user.take());
+            names = value
+                .split_whitespace()
+                .filter(|name| !name.contains(['*', '?', '!']))
+                .map(str::to_string)
+                .collect();
+        } else if key == "hostname" {
+            hostname = Some(value.into());
+        } else if key == "user" {
+            user = Some(value.into());
+        }
+    }
+    flush_ssh_hosts(&mut out, &names, hostname, user);
+    out
+}
+
+fn clean_ssh_config_line(line: &str) -> &str {
+    line.split('#').next().unwrap_or("").trim()
+}
+
+fn flush_ssh_hosts(
+    out: &mut Vec<SshHost>,
+    names: &[String],
+    hostname: Option<String>,
+    user: Option<String>,
+) {
+    for name in names {
+        out.push(SshHost {
+            name: name.clone(),
+            hostname: hostname.clone(),
+            user: user.clone(),
+        });
     }
 }
 
@@ -236,5 +371,52 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
                 walk_dirs(&p, depth - 1, out);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_simple_ssh_config_hosts() {
+        let hosts = ssh_config_hosts(
+            r#"
+            Host prod-api prod-api-short
+              HostName 10.0.0.5
+              User ubuntu
+
+            Host *
+              User ignored
+
+            Host staging-db
+              HostName staging.internal
+            "#,
+        );
+
+        assert_eq!(hosts.len(), 3);
+        assert_eq!(hosts[0].name, "prod-api");
+        assert_eq!(hosts[0].hostname.as_deref(), Some("10.0.0.5"));
+        assert_eq!(hosts[0].user.as_deref(), Some("ubuntu"));
+        assert_eq!(hosts[2].name, "staging-db");
+        assert_eq!(hosts[2].hostname.as_deref(), Some("staging.internal"));
+    }
+
+    #[test]
+    fn manual_server_entry_uses_command_when_present() {
+        let entry = server_entry(
+            "logs-prod",
+            Some("prod-api"),
+            Some("ubuntu"),
+            Some("ssh prod-api 'journalctl -fu app'"),
+            Some("~"),
+            &["logs".into(), "prod".into()],
+            "~",
+        );
+
+        assert_eq!(entry.source, Source::Server);
+        assert_eq!(entry.title, "logs-prod");
+        assert!(entry.haystack().contains("logs"));
+        assert!(matches!(entry.action, EntryAction::OpenServer { .. }));
     }
 }

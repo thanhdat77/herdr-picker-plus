@@ -34,18 +34,20 @@ src/main.rs
 ## Source model
 
 Each picker row is an `Entry`:
-- `source`: workspace/project/zoxide/root/agent/quick
+- `source`: workspace/project/server/zoxide/root/agent/quick/plugin
 - `title`, `subtitle`, `path`
 - optional `workspace_id`
 - optional `agent_target`
 - optional Herdr Plus `Project`
+- action enum for focus/create/server/integration behavior
 
-Duplicate workspace/project/root/zoxide paths are collapsed by canonical path where applicable. Agent entries are appended separately because multiple agents can share cwd.
+Duplicate workspace/project/root/zoxide paths are collapsed by canonical path where applicable. Agent entries are appended separately because multiple agents can share cwd. Server entries dedupe by title + command because many servers share the default `~` cwd.
 
 ## Open behavior
 
 - Workspace: `herdr workspace focus <id>`
 - Agent: `herdr agent focus <target>`
+- Server: focus `server: NAME` workspace if open; else create workspace and run SSH/custom command in root pane
 - Project: focus existing path if open; else create workspace and apply tabs
 - Zoxide/root: focus existing path if open; else create workspace
 - Quick: invoke Herdr Plus Quick Actions

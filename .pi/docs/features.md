@@ -11,7 +11,7 @@ Do not split into many specialized pickers unless the UX clearly needs it. The p
 Default source order:
 
 ```toml
-["workspace", "project", "zoxide", "root", "agent", "quick"]
+["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
 ```
 
 Source priority is intentional: existing/open things first, creation sources later, quick actions available but not dominant.
@@ -24,11 +24,16 @@ Source priority is intentional: existing/open things first, creation sources lat
 - `Ctrl-Q`: Herdr Plus Quick Actions
 - `Ctrl-Z`: zoxide
 - `Ctrl-R`: roots
+- `Ctrl-S`: servers
 - `Ctrl-A`: agents
 - `Ctrl-O`: preview
 - `Ctrl-U`: clear query/filter
 
 Keep keybindings mnemonic and few.
+
+## Server access
+
+Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting creates/focuses a `server: NAME` workspace and runs `ssh` or the custom command. Default local cwd is `~`; per-server `cwd` can override it.
 
 ## Herdr Plus
 

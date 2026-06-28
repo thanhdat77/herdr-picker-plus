@@ -18,8 +18,8 @@ create_missing = true
 engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
-# Accepted names: workspace/open, project, zoxide, root, agent, quick, plugin.
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
+# Accepted names: workspace/open, project, server, zoxide, root, agent, quick, plugin.
+source_order = ["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
@@ -48,6 +48,9 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
+# SSH/manual server entries. Selecting creates/focuses a server workspace.
+servers = true
+
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
 herdr_plus_quick_actions = true
 
@@ -55,6 +58,26 @@ herdr_plus_quick_actions = true
 # Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.
 # Falls back to the built-in One Light palette.
 inherit_herdr = true
+
+[servers]
+# Read hosts from ~/.ssh/config.
+ssh_config = true
+
+# Local cwd for server workspaces when a server entry does not set cwd.
+default_cwd = "~"
+
+# Optional manual servers. Use command for one-off shortcuts.
+# [[servers.entries]]
+# name = "prod-api"
+# host = "10.0.0.5"
+# user = "ubuntu"
+# cwd = "~/workspace/ops"
+# tags = ["prod", "api"]
+#
+# [[servers.entries]]
+# name = "logs-prod"
+# command = "ssh prod-api 'journalctl -fu app'"
+# tags = ["prod", "logs"]
 
 # Keep roots short; zoxide should handle most frequent directories.
 [[roots]]

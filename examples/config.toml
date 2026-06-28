@@ -4,7 +4,7 @@
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
+source_order = ["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
 agent_sort = "herdr" # herdr | priority | spaces
 
@@ -14,7 +14,12 @@ herdr_plus_projects = true
 zoxide = true
 roots = true
 agents = true
+servers = true
 herdr_plus_quick_actions = true
+
+[servers]
+ssh_config = true
+default_cwd = "~"
 
 [theme]
 inherit_herdr = true

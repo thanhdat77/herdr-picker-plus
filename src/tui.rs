@@ -76,6 +76,7 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             KeyCode::Char('p') => app.set_filter(Some(Source::Project)),
             KeyCode::Char('z') => app.set_filter(Some(Source::Zoxide)),
             KeyCode::Char('r') => app.set_filter(Some(Source::Root)),
+            KeyCode::Char('s') => app.set_filter(Some(Source::Server)),
             KeyCode::Char('o') => app.preview = !app.preview,
             KeyCode::Char('u') => {
                 app.query.clear();
@@ -180,7 +181,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "@ or Ctrl-A: all agents, configured sort  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
+    let help = "Ctrl-S servers  @/Ctrl-A agents  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
@@ -299,6 +300,10 @@ fn preview_text(app: &App, e: &Entry) -> String {
         EntryAction::FocusWorkspace { .. } => "focus existing workspace",
         EntryAction::FocusAgent { .. } => "focus agent pane",
         EntryAction::InvokePluginAction { .. } => "invoke Herdr plugin action",
+        EntryAction::OpenServer { .. } if app.matching_server_workspace(e).is_some() => {
+            "focus matching server workspace"
+        }
+        EntryAction::OpenServer { .. } => "create server workspace + run command",
         EntryAction::RunCommand { .. } => "run integration command",
         EntryAction::OpenProject if app.matching_project_workspace(e).is_some() => {
             "focus matching project workspace"
@@ -324,6 +329,7 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Zoxide => theme.blue,
         Source::Root => theme.teal,
         Source::Agent => theme.yellow,
+        Source::Server => theme.green,
         Source::QuickAction => theme.peach,
         Source::Integration => theme.red,
     }
