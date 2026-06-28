@@ -273,9 +273,11 @@ impl App {
 struct Query {
     plain: String,
     agent: Vec<String>,
-    workspace: Vec<String>,
+    workspace_or_status: Vec<String>,
     path: Vec<String>,
     status: Vec<String>,
+    attention_agents: bool,
+    other_agents: bool,
 }
 
 impl Query {
@@ -283,9 +285,11 @@ impl Query {
         let mut query = Self {
             plain: String::new(),
             agent: vec![],
-            workspace: vec![],
+            workspace_or_status: vec![],
             path: vec![],
             status: vec![],
+            attention_agents: false,
+            other_agents: false,
         };
         let mut plain = Vec::new();
         for raw in input.split_whitespace() {
@@ -293,11 +297,19 @@ impl Query {
             if let Some(rest) = token.strip_prefix('!') {
                 push_token(&mut query.agent, rest);
             } else if let Some(rest) = token.strip_prefix('@') {
-                push_token(&mut query.workspace, rest);
+                if rest.is_empty() {
+                    query.other_agents = true;
+                } else {
+                    push_token(&mut query.workspace_or_status, rest);
+                }
             } else if let Some(rest) = token.strip_prefix('/') {
                 push_token(&mut query.path, rest);
             } else if let Some(rest) = token.strip_prefix('#') {
-                push_token(&mut query.status, rest);
+                if rest.is_empty() {
+                    query.attention_agents = true;
+                } else {
+                    push_token(&mut query.status, rest);
+                }
             } else {
                 plain.push(token);
             }
@@ -307,13 +319,27 @@ impl Query {
     }
 
     fn filters_match(&self, entry: &Entry) -> bool {
-        if !self.agent.is_empty() && entry.source != Source::Agent {
+        let agent_query = self.attention_agents
+            || self.other_agents
+            || !self.agent.is_empty()
+            || !self.status.is_empty();
+        if agent_query && entry.source != Source::Agent {
+            return false;
+        }
+        if self.attention_agents && !agent_needs_action(entry) {
+            return false;
+        }
+        if self.other_agents && agent_needs_action(entry) {
             return false;
         }
         all_match(&self.agent, &agent_text(entry))
-            && all_match(&self.workspace, &workspace_text(entry))
+            && all_match_either(
+                &self.workspace_or_status,
+                &workspace_text(entry),
+                &status_text(entry),
+            )
             && all_match(&self.path, &entry.path.display().to_string())
-            && all_match(&self.status, &entry.subtitle)
+            && all_match(&self.status, &status_text(entry))
     }
 }
 
@@ -326,6 +352,42 @@ fn push_token(tokens: &mut Vec<String>, value: &str) {
 fn all_match(tokens: &[String], haystack: &str) -> bool {
     let haystack = haystack.to_lowercase();
     tokens.iter().all(|token| haystack.contains(token))
+}
+
+fn all_match_either(tokens: &[String], left: &str, right: &str) -> bool {
+    let left = left.to_lowercase();
+    let right = right.to_lowercase();
+    tokens
+        .iter()
+        .all(|token| left.contains(token) || right.contains(token))
+}
+
+fn agent_needs_action(entry: &Entry) -> bool {
+    let status = status_text(entry);
+    [
+        "block",
+        "done",
+        "need",
+        "attention",
+        "review",
+        "request",
+        "question",
+        "wait",
+        "fail",
+        "error",
+    ]
+    .iter()
+    .any(|needle| status.contains(needle))
+}
+
+fn status_text(entry: &Entry) -> String {
+    entry
+        .subtitle
+        .split('·')
+        .next()
+        .unwrap_or(&entry.subtitle)
+        .trim()
+        .to_lowercase()
 }
 
 fn agent_text(entry: &Entry) -> String {
@@ -394,10 +456,14 @@ mod tests {
     }
 
     fn agent_entry() -> Entry {
+        agent_entry_with_status("idle")
+    }
+
+    fn agent_entry_with_status(status: &str) -> Entry {
         Entry {
             source: Source::Agent,
             title: "claude · Dotfiles · dotfiles".into(),
-            subtitle: "idle · wF:p2 · wF:t2".into(),
+            subtitle: format!("{status} · wF:p2 · wF:t2"),
             path: PathBuf::from("/home/fenix/dotfiles"),
             workspace_id: Some("wF".into()),
             workspace_label: Some("Dotfiles".into()),
@@ -420,6 +486,21 @@ mod tests {
         assert!(!Query::parse("!codex").filters_match(&agent));
         assert!(!Query::parse("!dotfiles").filters_match(&agent));
         assert!(!Query::parse("!claude").filters_match(&entry(Source::Project, "/tmp", "claude")));
+    }
+
+    #[test]
+    fn agent_shortcuts_split_attention_and_other_statuses() {
+        let idle = agent_entry_with_status("idle");
+        let blocked = agent_entry_with_status("blocking");
+        let done = agent_entry_with_status("done");
+
+        assert!(Query::parse("#").filters_match(&blocked));
+        assert!(Query::parse("#").filters_match(&done));
+        assert!(!Query::parse("#").filters_match(&idle));
+        assert!(Query::parse("@").filters_match(&idle));
+        assert!(!Query::parse("@").filters_match(&blocked));
+        assert!(Query::parse("@idle").filters_match(&idle));
+        assert!(Query::parse("@Dotfiles").filters_match(&idle));
     }
 
     #[test]

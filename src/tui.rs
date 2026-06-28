@@ -180,7 +180,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "Ctrl-A agents  tokens: !agent @workspace /path #status  Ctrl-O preview  Ctrl-U clear  Tab cycle  Enter open  Esc quit";
+    let help = "Ctrl-A agents  #: needs action  @: other agents  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
@@ -264,7 +264,10 @@ fn preview_text(app: &App, e: &Entry) -> String {
         lines.push(format!("agent target: {target}"));
     }
     if e.source == Source::Agent {
-        lines.push("agent filters: !agent @workspace /path #status".into());
+        lines.push(
+            "agent filters: # needs action, @ other status, !agent, @workspace/status, /path"
+                .into(),
+        );
     }
     if !e.search_terms.is_empty() {
         lines.push(format!("search terms: {}", e.search_terms.join(", ")));

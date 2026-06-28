@@ -153,10 +153,12 @@ prefix+t
 | `Ctrl-Z` | zoxide only |
 | `Ctrl-R` | roots only |
 | `Ctrl-A` | agents only |
+| `#` | show agents needing user action, for example blocking/done/review |
+| `@` | show other agents, for example idle/running |
 | `!text` | match agent name, for example `!claude` |
-| `@text` | match workspace/session label or id, for example `@dotfiles` |
+| `@text` | match workspace/session label/id or status, for example `@dotfiles` or `@idle` |
 | `/text` | match cwd/path, for example `/chatbot` |
-| `#text` | match status/info, for example `#idle` |
+| `#text` | match agent status, for example `#done` |
 | `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
 
@@ -230,8 +232,12 @@ Agent rows include the agent name, workspace/session label, cwd, status, pane id
 Useful queries:
 
 ```text
-!claude @Dotfiles /dotfiles #idle
+#                 # agents needing user action: blocking/done/review/etc.
+@                 # other agents: idle/running/etc.
+!claude @Dotfiles /dotfiles
 !codex /chatbot
+#done
+@idle
 @wF
 ```
 

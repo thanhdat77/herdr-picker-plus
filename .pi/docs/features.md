@@ -65,9 +65,12 @@ Agent rows are searchable by agent name, workspace/session label, cwd, status, p
 
 Token filters:
 
-- `!claude`: agent name
-- `@Dotfiles`: workspace/session label or id
-- `/chatbot`: cwd/path
-- `#idle`: status/info
+- `#`: agents needing user action, e.g. blocking/done/review/request/error.
+- `@`: other agents, e.g. idle/running.
+- `!claude`: agent name.
+- `@Dotfiles`: workspace/session label or id.
+- `@idle`: status text for non-attention agents.
+- `/chatbot`: cwd/path.
+- `#done`: agent status text.
 
 Aliases live in `[[agent_aliases]]` and only add search terms; they do not rename panes or workspaces.
