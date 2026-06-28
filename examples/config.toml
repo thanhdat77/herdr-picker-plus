@@ -6,6 +6,7 @@ create_missing = true
 engine = "nucleo" # nucleo | skim | simple
 source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
+agent_sort = "herdr" # herdr | priority | spaces
 
 [sources]
 open_workspaces = true

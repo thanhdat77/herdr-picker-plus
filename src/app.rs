@@ -83,7 +83,8 @@ impl App {
         let query = Query::parse(&self.query);
         let agent_view = query.all_agents
             || (self.source_filter == Some(Source::Agent) && query.plain.is_empty());
-        let use_agent_priority = agent_view && herdr_agent_panel_sort() == "priority";
+        let use_agent_priority =
+            agent_view && agent_sort(&self.config.picker.agent_sort) == "priority";
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
@@ -287,7 +288,6 @@ struct Query {
     workspace_or_status: Vec<String>,
     path: Vec<String>,
     status: Vec<String>,
-    attention_agents: bool,
     all_agents: bool,
 }
 
@@ -299,7 +299,6 @@ impl Query {
             workspace_or_status: vec![],
             path: vec![],
             status: vec![],
-            attention_agents: false,
             all_agents: false,
         };
         let mut plain = Vec::new();
@@ -316,11 +315,7 @@ impl Query {
             } else if let Some(rest) = token.strip_prefix('/') {
                 push_token(&mut query.path, rest);
             } else if let Some(rest) = token.strip_prefix('#') {
-                if rest.is_empty() {
-                    query.attention_agents = true;
-                } else {
-                    push_token(&mut query.status, rest);
-                }
+                push_token(&mut query.status, rest);
             } else {
                 plain.push(token);
             }
@@ -330,15 +325,11 @@ impl Query {
     }
 
     fn filters_match(&self, entry: &Entry) -> bool {
-        let agent_query = self.attention_agents
-            || self.all_agents
+        let agent_query = self.all_agents
             || !self.agent.is_empty()
             || !self.workspace_or_status.is_empty()
             || !self.status.is_empty();
         if agent_query && entry.source != Source::Agent {
-            return false;
-        }
-        if self.attention_agents && !agent_needs_action(entry) {
             return false;
         }
         all_match(&self.agent, &agent_text(entry))
@@ -377,10 +368,6 @@ fn all_match_either(tokens: &[String], left: &str, right: &str) -> bool {
     tokens
         .iter()
         .all(|token| left.contains(token) || right.contains(token))
-}
-
-fn agent_needs_action(entry: &Entry) -> bool {
-    agent_status_bonus(entry) >= 8_000
 }
 
 fn agent_status_bonus(entry: &Entry) -> i64 {
@@ -434,6 +421,14 @@ fn workspace_text(entry: &Entry) -> String {
         entry.workspace_label.as_deref().unwrap_or(""),
         entry.title
     )
+}
+
+fn agent_sort(configured: &str) -> String {
+    match configured.to_lowercase().as_str() {
+        "priority" => "priority".into(),
+        "spaces" => "spaces".into(),
+        _ => herdr_agent_panel_sort(),
+    }
 }
 
 fn herdr_agent_panel_sort() -> String {
@@ -535,20 +530,19 @@ mod tests {
     }
 
     #[test]
-    fn agent_shortcuts_filter_and_prioritize_statuses() {
+    fn agent_shortcut_shows_all_agents_and_priority_is_configurable() {
         let idle = agent_entry_with_status("idle");
         let blocked = agent_entry_with_status("blocking");
         let done = agent_entry_with_status("done");
 
-        assert!(Query::parse("#").filters_match(&blocked));
-        assert!(Query::parse("#").filters_match(&done));
-        assert!(!Query::parse("#").filters_match(&idle));
         assert!(Query::parse("@").filters_match(&idle));
         assert!(Query::parse("@").filters_match(&blocked));
         assert!(Query::parse("@idle").filters_match(&idle));
         assert!(Query::parse("@Dotfiles").filters_match(&idle));
         assert!(agent_status_bonus(&blocked) > agent_status_bonus(&done));
         assert!(agent_status_bonus(&done) > agent_status_bonus(&idle));
+        assert_eq!(agent_sort("priority"), "priority");
+        assert_eq!(agent_sort("spaces"), "spaces");
     }
 
     #[test]

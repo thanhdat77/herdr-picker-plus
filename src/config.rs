@@ -34,6 +34,8 @@ pub(crate) struct PickerConfig {
     pub(crate) source_order: Vec<String>,
     #[serde(default = "default_source_priority_boost")]
     pub(crate) source_priority_boost: i64,
+    #[serde(default = "default_agent_sort")]
+    pub(crate) agent_sort: String,
 }
 #[derive(Clone, Deserialize)]
 pub(crate) struct SourcesConfig {
@@ -123,6 +125,9 @@ fn default_source_order() -> Vec<String> {
 fn default_source_priority_boost() -> i64 {
     25
 }
+fn default_agent_sort() -> String {
+    "herdr".into()
+}
 
 impl Default for PickerConfig {
     fn default() -> Self {
@@ -132,6 +137,7 @@ impl Default for PickerConfig {
             engine: default_engine(),
             source_order: default_source_order(),
             source_priority_boost: default_source_priority_boost(),
+            agent_sort: default_agent_sort(),
         }
     }
 }

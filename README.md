@@ -153,12 +153,10 @@ prefix+t
 | `Ctrl-Z` | zoxide only |
 | `Ctrl-R` | roots only |
 | `Ctrl-A` | agents only |
-| `#` | show agents needing user action, for example blocking/done/review |
-| `@` | same as `Ctrl-A`: show all agents, using Herdr's agent panel sort |
+| `@` | same as `Ctrl-A`: show all agents, using configured agent sort |
 | `!text` | match agent name, for example `!claude` |
 | `@text` | agent-only match by workspace/session label/id or status, for example `@dotfiles` or `@idle` |
 | `/text` | match cwd/path, for example `/chatbot` |
-| `#text` | match agent status, for example `#done` |
 | `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
 
@@ -181,6 +179,7 @@ create_missing = true
 engine = "nucleo" # nucleo | skim | simple
 source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
+agent_sort = "herdr" # herdr | priority | spaces
 
 [sources]
 open_workspaces = true
@@ -227,16 +226,14 @@ agents = true
 
 ### Agent search
 
-Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut and `Ctrl-A` both use Herdr's `agent_panel_sort` setting; with `agent_panel_sort = "priority"`, blocking agents rank first, done agents second, then the rest.
+Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut and `Ctrl-A` use `picker.agent_sort`; default `herdr` reads Herdr's `agent_panel_sort`. Set `priority` for blocking first, done second, then the rest; set `spaces` to keep Herdr/pane order.
 
 Useful queries:
 
 ```text
-#                 # agents needing user action: blocking/done/review/etc.
 @                 # all agents, same as Ctrl-A
 !claude @Dotfiles /dotfiles
 !codex /chatbot
-#done
 @idle
 @wF
 ```
@@ -261,6 +258,7 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 [picker]
 source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plugin"]
 source_priority_boost = 25
+agent_sort = "herdr" # herdr | priority | spaces
 ```
 
 Accepted names:

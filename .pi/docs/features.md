@@ -65,12 +65,10 @@ Agent rows are searchable by agent name, workspace/session label, cwd, status, p
 
 Token filters:
 
-- `#`: agents needing user action, e.g. blocking/done/review/request/error.
-- `@`: all agents, same as Ctrl-A, sorted by Herdr `agent_panel_sort`.
+- `@`: all agents, same as Ctrl-A, sorted by `picker.agent_sort` (`herdr`, `priority`, or `spaces`).
 - `!claude`: agent name.
 - `@Dotfiles`: agent-only workspace/session label or id.
 - `@idle`: agent status text.
 - `/chatbot`: cwd/path.
-- `#done`: agent status text.
 
 Aliases live in `[[agent_aliases]]` and only add search terms; they do not rename panes or workspaces.

@@ -180,7 +180,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "@ or Ctrl-A: all agents, Herdr sort  #: needs action  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
+    let help = "@ or Ctrl-A: all agents, configured sort  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
@@ -265,7 +265,7 @@ fn preview_text(app: &App, e: &Entry) -> String {
     }
     if e.source == Source::Agent {
         lines.push(
-            "agent filters: @ all agents (Herdr sort), # needs action, !agent, @workspace/status, /path"
+            "agent filters: @ all agents (configured sort), !agent, @workspace/status, /path"
                 .into(),
         );
     }

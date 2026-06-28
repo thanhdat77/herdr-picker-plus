@@ -25,6 +25,12 @@ source_order = ["workspace", "project", "zoxide", "root", "agent", "quick", "plu
 # Set 0 for pure matcher score.
 source_priority_boost = 25
 
+# Agent view sorting for `@` and Ctrl-A:
+# - herdr: read Herdr's agent_panel_sort setting
+# - priority: blocking first, done second, then the rest
+# - spaces: keep Herdr/pane order
+agent_sort = "herdr"
+
 [sources]
 # Existing Herdr workspaces. Selecting focuses the workspace.
 open_workspaces = true
