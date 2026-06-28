@@ -238,16 +238,6 @@ impl Entry {
         canonical_str(&self.path).unwrap_or_else(|| self.path.display().to_string())
     }
 
-    fn identity(&self) -> String {
-        format!(
-            "{}:{}:{}:{}",
-            self.source.label(),
-            self.workspace_id.as_deref().unwrap_or(""),
-            self.agent_target.as_deref().unwrap_or(""),
-            self.key()
-        )
-    }
-
     fn haystack(&self) -> String {
         format!(
             "{} {} {} {}",
@@ -314,8 +304,6 @@ impl App {
     }
 
     fn apply_filter(&mut self) {
-        let previous_identity = self.selected_entry().map(Entry::identity);
-        let previous_index = self.selected;
         let q = self.query.to_lowercase();
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
@@ -344,17 +332,7 @@ impl App {
                 .then_with(|| self.entries[*idx_a].title.cmp(&self.entries[*idx_b].title))
         });
         self.filtered = scored.into_iter().map(|(_, idx)| idx).collect();
-        if let Some(previous_identity) = previous_identity {
-            if let Some(pos) = self
-                .filtered
-                .iter()
-                .position(|idx| self.entries[*idx].identity() == previous_identity)
-            {
-                self.selected = pos;
-                return;
-            }
-        }
-        self.selected = previous_index.min(self.filtered.len().saturating_sub(1));
+        self.selected = 0;
     }
 
     fn set_filter(&mut self, source: Option<Source>) {
