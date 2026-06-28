@@ -4,7 +4,7 @@ Purpose: compact project-only docs for future agents. Prefer intent over line-by
 
 ## Project intent
 
-Herdr Picker Plus is a Herdr overlay plugin for one fast command-palette flow:
+Herdr Picker Plus is a Herdr picker-center plugin for one fast command-palette flow:
 
 ```text
 prefix+t -> search -> Enter -> land in the right place

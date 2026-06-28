@@ -2,9 +2,9 @@
 
 ## Picker goal
 
-One overlay that answers: “where do I want to work next?”
+One picker center that answers: “where do I want to work next, or what Herdr action do I need now?”
 
-Do not split into many specialized pickers unless the UX clearly needs it.
+Do not split into many specialized pickers unless the UX clearly needs it. The product direction is “kinda like tv, but deeply integrated with Herdr.”
 
 ## Sources
 

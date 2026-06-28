@@ -1,6 +1,6 @@
 # Herdr Picker Plus
 
-A Herdr-native overlay picker for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
+A Herdr-native picker center for jumping to workspaces, projects, directories, agents, and Herdr Plus actions.
 
 ```text
 prefix+t -> search -> Enter
@@ -8,7 +8,7 @@ prefix+t -> search -> Enter
 
 ## What it does
 
-Herdr's built-in `prefix+g` is great for navigating things that already exist. Herdr Picker Plus is for the `sesh` / `Ctrl-T` workflow: start from a project or directory, then land in the right Herdr workspace.
+Herdr's built-in `prefix+g` is great for navigating things that already exist. Herdr Picker Plus is a picker center for the `sesh` / `Ctrl-T` workflow: start from a project, directory, agent, or Herdr Plus action, then land in the right Herdr context.
 
 It can:
 
@@ -228,6 +228,10 @@ This project ships tagged GitHub releases with Linux and macOS archives. See [`R
 ## Security
 
 See [`SECURITY.md`](SECURITY.md).
+
+## Architecture
+
+See [`docs/architecture.md`](docs/architecture.md).
 
 ## Design notes
 

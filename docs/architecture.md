@@ -1,0 +1,96 @@
+# Architecture
+
+Herdr Picker Plus is a picker center for Herdr: one overlay for choosing where to go or what Herdr-adjacent action to run.
+
+It is similar in spirit to `tv`, but deeper integrated with Herdr. Instead of only returning a selected path/item, it can focus existing Herdr state, create Herdr workspaces, apply Herdr Plus project tabs, focus agents, or launch Herdr Plus Quick Actions.
+
+## Runtime shape
+
+```text
+Herdr keybinding
+  -> plugin action: herdr-picker-plus.open
+  -> Herdr opens overlay pane: picker
+  -> binary runs: herdr-picker-plus ui
+  -> collect sources
+  -> fuzzy filter/rank
+  -> Enter dispatches Herdr action
+```
+
+The plugin is intentionally a terminal TUI running inside a Herdr-managed overlay pane. Herdr plugin v1 does not expose a native custom UI surface.
+
+## Entry points
+
+| Command | Purpose |
+| --- | --- |
+| `herdr-picker-plus open` | Ask Herdr to open the picker overlay pane |
+| `herdr-picker-plus ui` | Run the interactive TUI inside that pane |
+| `herdr-picker-plus list` | Debug: print collected entries without opening TUI |
+
+## Sources
+
+| Source | Input | Enter behavior |
+| --- | --- | --- |
+| `workspace` | `herdr workspace list` + pane cwd | focus existing workspace |
+| `project` | Herdr Plus project TOML files | focus existing cwd or create workspace + tabs |
+| `quick` | Herdr Plus Quick Actions | open Herdr Plus Quick Actions picker |
+| `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
+| `root` | configured filesystem roots | focus existing cwd or create workspace |
+| `agent` | `herdr pane list` agent metadata | focus agent pane |
+
+## Core open rule
+
+The picker should prefer reuse over duplication:
+
+```text
+selected item path already open -> focus existing workspace
+not open + creation allowed -> create workspace
+project template selected -> create workspace, then apply tabs
+agent selected -> focus agent pane
+quick selected -> delegate to Herdr Plus Quick Actions
+```
+
+This keeps the picker useful as a navigation center, not only a launcher.
+
+## Herdr Plus boundary
+
+Herdr Picker Plus integrates with Herdr Plus but does not copy all Herdr Plus behavior.
+
+Current integration:
+
+- reads project templates from Herdr Plus config
+- creates/focuses workspaces for projects
+- applies project tabs and startup commands
+- launches the Herdr Plus Quick Actions picker
+
+Boundary:
+
+- Herdr Plus remains the owner of full Quick Actions UI and action execution
+- this plugin only surfaces Quick Actions as one source inside the picker center
+
+## Theme boundary
+
+Herdr plugin v1 does not expose the active theme palette directly to external plugins.
+
+Current behavior:
+
+1. read `~/.config/herdr/config.toml`
+2. map supported `theme.name` values locally
+3. apply `[theme.custom]` overrides last
+4. fall back to One Light
+
+This is practical theme inheritance, not native palette access.
+
+## Design goals
+
+- One fast overlay for “where next?”
+- Deep Herdr actions on selection, not just printing paths
+- Optional integrations degrade quietly
+- Small Rust binary, no external picker UI dependency
+- Keep source model simple enough to add more Herdr-aware sources later
+
+## Non-goals
+
+- Replacing Herdr Plus
+- Replacing Herdr's built-in `prefix+g`
+- Building a generic plugin framework
+- Perfect theme parity until Herdr exposes plugin palette data
