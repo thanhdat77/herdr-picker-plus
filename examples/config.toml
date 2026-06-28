@@ -25,3 +25,9 @@ max_depth = 3
 [[roots]]
 path = "~/projects"
 max_depth = 3
+
+# [[agent_aliases]]
+# alias = "main ai dot"
+# agent = "claude"
+# workspace = "Dotfiles"
+# path = "dotfiles"

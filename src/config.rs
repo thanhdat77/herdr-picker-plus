@@ -18,6 +18,8 @@ pub(crate) struct Config {
     pub(crate) roots: Vec<RootConfig>,
     #[serde(default)]
     pub(crate) integrations: Vec<IntegrationConfig>,
+    #[serde(default)]
+    pub(crate) agent_aliases: Vec<AgentAliasConfig>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -66,6 +68,28 @@ pub(crate) struct IntegrationConfig {
 pub(crate) struct ThemeConfig {
     #[serde(default = "yes")]
     pub(crate) inherit_herdr: bool,
+}
+
+#[derive(Clone, Deserialize)]
+pub(crate) struct AgentAliasConfig {
+    pub(crate) alias: String,
+    pub(crate) agent: Option<String>,
+    pub(crate) workspace: Option<String>,
+    pub(crate) path: Option<String>,
+}
+
+impl AgentAliasConfig {
+    pub(crate) fn matches(&self, agent: &str, workspace: &str, path: &str) -> bool {
+        opt_matches(self.agent.as_deref(), agent)
+            && opt_matches(self.workspace.as_deref(), workspace)
+            && opt_matches(self.path.as_deref(), path)
+    }
+}
+
+fn opt_matches(needle: Option<&str>, haystack: &str) -> bool {
+    needle
+        .map(|value| haystack.to_lowercase().contains(&value.to_lowercase()))
+        .unwrap_or(true)
 }
 #[derive(Clone, Deserialize)]
 pub(crate) struct RootConfig {
@@ -153,6 +177,7 @@ impl Default for Config {
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
             integrations: vec![],
+            agent_aliases: vec![],
             roots: vec![
                 RootConfig {
                     path: "~/workspace".into(),
@@ -209,5 +234,23 @@ mod tests {
         assert_eq!(config.integrations[0].label, "Bookmarks");
         assert!(!config.integrations[0].notify_success);
         assert!(config.integrations[0].notify_error);
+    }
+
+    #[test]
+    fn parses_agent_aliases() {
+        let config: Config = toml::from_str(
+            r#"
+            [[agent_aliases]]
+            alias = "main ai dot"
+            agent = "claude"
+            workspace = "Dotfiles"
+            path = "dotfiles"
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(config.agent_aliases.len(), 1);
+        assert!(config.agent_aliases[0].matches("claude", "Dotfiles", "/home/fenix/dotfiles"));
+        assert!(!config.agent_aliases[0].matches("codex", "Dotfiles", "/home/fenix/dotfiles"));
     }
 }

@@ -58,3 +58,16 @@ open = "my-plugin open {{id}}"
 ```
 
 Collect JSON minimum: `id`, `title`. Optional: `subtitle`, `path`, `kind`.
+
+## Agent search keys
+
+Agent rows are searchable by agent name, workspace/session label, cwd, status, pane id, tab id, terminal id, and optional user aliases.
+
+Token filters:
+
+- `!claude`: agent name
+- `@Dotfiles`: workspace/session label or id
+- `/chatbot`: cwd/path
+- `#idle`: status/info
+
+Aliases live in `[[agent_aliases]]` and only add search terms; they do not rename panes or workspaces.

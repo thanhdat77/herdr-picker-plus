@@ -100,10 +100,12 @@ pub(crate) struct Entry {
     pub(crate) subtitle: String,
     pub(crate) path: PathBuf,
     pub(crate) workspace_id: Option<String>,
+    pub(crate) workspace_label: Option<String>,
     pub(crate) agent_target: Option<String>,
     pub(crate) project: Option<Project>,
     pub(crate) action: EntryAction,
     pub(crate) source_label: Option<String>,
+    pub(crate) search_terms: Vec<String>,
 }
 
 impl Entry {
@@ -119,11 +121,13 @@ impl Entry {
 
     pub(crate) fn haystack(&self) -> String {
         format!(
-            "{} {} {} {}",
+            "{} {} {} {} {} {}",
             self.source_name(),
             self.title,
             self.subtitle,
-            self.path.display()
+            self.workspace_label.as_deref().unwrap_or(""),
+            self.path.display(),
+            self.search_terms.join(" ")
         )
         .to_lowercase()
     }

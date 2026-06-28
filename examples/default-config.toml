@@ -59,6 +59,15 @@ max_depth = 3
 path = "~/projects"
 max_depth = 3
 
+# Optional agent aliases. All match fields are optional and matched as text contains.
+# Aliases become extra search terms for matching agent panes.
+#
+# [[agent_aliases]]
+# alias = "main ai dot"
+# agent = "claude"
+# workspace = "Dotfiles"
+# path = "dotfiles"
+
 # Optional command/JSON integrations. A plugin only needs:
 # - collect: command that prints JSON array
 # - open: command to run when the item is selected

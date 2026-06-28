@@ -43,3 +43,7 @@ This project should stay a compact plugin. Avoid speculative abstractions, plugi
 Use a command/JSON list-open contract before building a plugin SDK. This keeps contributor burden low and avoids a speculative framework. Herdr Plus remains built in because it needs Herdr-specific workspace/tab bootstrap behavior.
 
 Picker Plus owns notifications for integration open success/failure so plugin authors only implement list/open.
+
+## Agent search feature shape
+
+Use visible Herdr state first: agent name, workspace label/id, cwd, pane/tab/terminal ids, status. Add token filters for precision and aliases for user memory. Do not invent session names inside Picker Plus; aliases are search-only.

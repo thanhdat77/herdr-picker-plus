@@ -32,10 +32,12 @@ pub(crate) fn collect_projects() -> Vec<Entry> {
             subtitle: project.description.clone(),
             path: p,
             workspace_id: None,
+            workspace_label: None,
             agent_target: None,
             project: Some(project),
             action: EntryAction::OpenProject,
             source_label: None,
+            search_terms: vec![],
         });
     }
     out
@@ -48,12 +50,14 @@ pub(crate) fn quick_actions_entry() -> Entry {
         subtitle: "open the Herdr Plus quick-action picker".into(),
         path: env::current_dir().unwrap_or_else(|_| home()),
         workspace_id: None,
+        workspace_label: None,
         agent_target: None,
         project: None,
         action: EntryAction::InvokePluginAction {
             action: "cloudmanic.herdr-plus.quick-actions".into(),
         },
         source_label: None,
+        search_terms: vec![],
     }
 }
 

@@ -7,6 +7,7 @@ All notable changes to this project are documented here.
 ### Added
 - Command/JSON plugin integration contract via `[[integrations]]`.
 - Herdr success/error notifications for selected actions.
+- Agent search by agent name, workspace/session label, cwd/path, status, ids, and aliases.
 
 ### Changed
 - Herdr Plus logic now lives in a built-in integration adapter.

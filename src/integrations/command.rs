@@ -56,12 +56,15 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
     let path = item.path.as_deref().map(expand_path).unwrap_or_else(home);
     let subtitle = subtitle(integration, &item);
     let command = render_template(&integration.open, &item);
+    let id = item.id.clone();
+    let kind = item.kind.clone();
     Entry {
         source: Source::Integration,
         title: item.title,
         subtitle,
         path,
         workspace_id: None,
+        workspace_label: None,
         agent_target: None,
         project: None,
         action: EntryAction::RunCommand {
@@ -70,6 +73,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
             notify_error: integration.notify_error,
         },
         source_label: Some(integration.label.clone()),
+        search_terms: vec![id, kind],
     }
 }
 

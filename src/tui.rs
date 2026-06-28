@@ -180,7 +180,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "Ctrl-W workspace  Ctrl-P project  Ctrl-Q quick  Ctrl-Z zoxide  Ctrl-R roots  Ctrl-A agents  Ctrl-O preview  Ctrl-U clear  Tab cycle  Enter open  Esc quit";
+    let help = "Ctrl-A agents  tokens: !agent @workspace /path #status  Ctrl-O preview  Ctrl-U clear  Tab cycle  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
@@ -254,11 +254,20 @@ fn preview_text(app: &App, e: &Entry) -> String {
     if !e.subtitle.is_empty() {
         lines.push(format!("info: {}", e.subtitle));
     }
+    if let Some(label) = &e.workspace_label {
+        lines.push(format!("workspace: {label}"));
+    }
     if let Some(id) = &e.workspace_id {
         lines.push(format!("workspace_id: {id}"));
     }
     if let Some(target) = &e.agent_target {
         lines.push(format!("agent target: {target}"));
+    }
+    if e.source == Source::Agent {
+        lines.push("agent filters: !agent @workspace /path #status".into());
+    }
+    if !e.search_terms.is_empty() {
+        lines.push(format!("search terms: {}", e.search_terms.join(", ")));
     }
     let workspaces = app.workspaces_for_entry(e);
     if !workspaces.is_empty() {

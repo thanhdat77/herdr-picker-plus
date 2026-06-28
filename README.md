@@ -153,6 +153,10 @@ prefix+t
 | `Ctrl-Z` | zoxide only |
 | `Ctrl-R` | roots only |
 | `Ctrl-A` | agents only |
+| `!text` | match agent name, for example `!claude` |
+| `@text` | match workspace/session label or id, for example `@dotfiles` |
+| `/text` | match cwd/path, for example `/chatbot` |
+| `#text` | match status/info, for example `#idle` |
 | `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
 
@@ -194,6 +198,13 @@ max_depth = 3
 [[roots]]
 path = "~/projects"
 max_depth = 3
+
+# Optional: add human aliases to agent panes.
+[[agent_aliases]]
+alias = "main ai dot"
+agent = "claude"
+workspace = "Dotfiles"
+path = "dotfiles"
 ```
 
 ## Customize
@@ -211,6 +222,30 @@ zoxide = true
 roots = true
 agents = true
 ```
+
+### Agent search
+
+Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search.
+
+Useful queries:
+
+```text
+!claude @Dotfiles /dotfiles #idle
+!codex /chatbot
+@wF
+```
+
+Add aliases when the real Herdr labels are not memorable enough:
+
+```toml
+[[agent_aliases]]
+alias = "main ai dot"
+agent = "claude"      # optional
+workspace = "Dotfiles" # optional
+path = "dotfiles"     # optional
+```
+
+All match fields are optional and use text-contains matching.
 
 ### Change source priority
 

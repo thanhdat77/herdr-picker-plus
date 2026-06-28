@@ -68,10 +68,12 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
                 subtitle: format!("{} tabs:{} panes:{}", id, tab_count, pane_count),
                 path,
                 workspace_id: Some(id.into()),
+                workspace_label: Some(label.into()),
                 agent_target: None,
                 project: None,
                 action: EntryAction::FocusWorkspace { id: id.into() },
                 source_label: None,
+                search_terms: vec![id.into(), label.into()],
             });
         }
     }
@@ -89,7 +91,14 @@ fn workspace_kind(label: &str) -> WorkspaceKind {
     }
 }
 
-pub(crate) fn collect_agents() -> Vec<Entry> {
+pub(crate) fn collect_agents(
+    workspaces: &[Entry],
+    aliases: &[crate::config::AgentAliasConfig],
+) -> Vec<Entry> {
+    let workspace_labels: HashMap<&str, &str> = workspaces
+        .iter()
+        .filter_map(|entry| Some((entry.workspace_id.as_deref()?, entry.title.as_str())))
+        .collect();
     let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
     let mut entries = Vec::new();
     if let Some(panes) = pane_json
@@ -101,6 +110,7 @@ pub(crate) fn collect_agents() -> Vec<Entry> {
                 continue;
             };
             let pane = p.get("pane_id").and_then(|v| v.as_str()).unwrap_or("");
+            let tab = p.get("tab_id").and_then(|v| v.as_str()).unwrap_or("");
             let term = p
                 .get("terminal_id")
                 .and_then(|v| v.as_str())
@@ -114,21 +124,45 @@ pub(crate) fn collect_agents() -> Vec<Entry> {
                 .get("agent_status")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
+            let workspace_id = p.get("workspace_id").and_then(|v| v.as_str()).unwrap_or("");
+            let workspace_label = workspace_labels
+                .get(workspace_id)
+                .copied()
+                .unwrap_or(workspace_id);
+            let path = PathBuf::from(cwd);
+            let dir = basename(&path);
+            let alias_terms: Vec<String> = aliases
+                .iter()
+                .filter(|alias| alias.matches(agent, workspace_label, cwd))
+                .map(|alias| alias.alias.clone())
+                .collect();
+            let title = format!("{agent} · {workspace_label} · {dir}");
+            let subtitle = format!("{status} · {pane} · {tab}");
+            let mut search_terms = vec![
+                agent.into(),
+                status.into(),
+                pane.into(),
+                tab.into(),
+                term.into(),
+                workspace_id.into(),
+                workspace_label.into(),
+                dir,
+            ];
+            search_terms.extend(alias_terms);
             entries.push(Entry {
                 source: Source::Agent,
-                title: agent.into(),
-                subtitle: format!("{status} {pane}"),
-                path: PathBuf::from(cwd),
-                workspace_id: p
-                    .get("workspace_id")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.into()),
+                title,
+                subtitle,
+                path,
+                workspace_id: (!workspace_id.is_empty()).then(|| workspace_id.into()),
+                workspace_label: Some(workspace_label.into()),
                 agent_target: Some(term.into()),
                 project: None,
                 action: EntryAction::FocusAgent {
                     target: term.into(),
                 },
                 source_label: None,
+                search_terms,
             });
         }
     }
@@ -153,10 +187,12 @@ pub(crate) fn collect_zoxide() -> Vec<Entry> {
                 subtitle: line.into(),
                 path,
                 workspace_id: None,
+                workspace_label: None,
                 agent_target: None,
                 project: None,
                 action: EntryAction::FocusOrCreateDir,
                 source_label: None,
+                search_terms: vec![],
             }
         })
         .collect()
@@ -183,10 +219,12 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
             subtitle: path.display().to_string(),
             path: path.to_path_buf(),
             workspace_id: None,
+            workspace_label: None,
             agent_target: None,
             project: None,
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
+            search_terms: vec![],
         });
     }
     if let Ok(read) = fs::read_dir(path) {

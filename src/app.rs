@@ -48,7 +48,7 @@ impl App {
         self.path_to_workspaces = path_to_workspaces;
 
         if self.config.sources.open_workspaces {
-            push_unique(&mut entries, &mut seen, workspace_entries);
+            push_unique(&mut entries, &mut seen, workspace_entries.clone());
         }
         if self.config.sources.herdr_plus_projects {
             push_unique(&mut entries, &mut seen, herdr_plus::collect_projects());
@@ -60,7 +60,10 @@ impl App {
             push_unique(&mut entries, &mut seen, collect_roots(&self.config));
         }
         if self.config.sources.agents {
-            entries.extend(collect_agents());
+            entries.extend(collect_agents(
+                &workspace_entries,
+                &self.config.agent_aliases,
+            ));
         }
         if self.config.sources.herdr_plus_quick_actions && herdr_plus_quick_actions_dir().is_dir() {
             entries.push(herdr_plus::quick_actions_entry());
@@ -76,7 +79,7 @@ impl App {
     }
 
     pub(crate) fn apply_filter(&mut self) {
-        let q = self.query.to_lowercase();
+        let query = Query::parse(&self.query);
         let mut scored = Vec::new();
         for (idx, e) in self.entries.iter().enumerate() {
             if let Some(sf) = &self.source_filter {
@@ -84,11 +87,15 @@ impl App {
                     continue;
                 }
             }
+            if !query.filters_match(e) {
+                continue;
+            }
             let hay = e.haystack();
             let source_bonus = self.config.picker.source_bonus(&e.source);
-            if q.is_empty() {
+            if query.plain.is_empty() {
                 scored.push((source_bonus, idx));
-            } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &q) {
+            } else if let Some(score) = match_score(&self.config.picker.engine, &hay, &query.plain)
+            {
                 scored.push((score + source_bonus, idx));
             }
         }
@@ -263,6 +270,82 @@ impl App {
     }
 }
 
+struct Query {
+    plain: String,
+    agent: Vec<String>,
+    workspace: Vec<String>,
+    path: Vec<String>,
+    status: Vec<String>,
+}
+
+impl Query {
+    fn parse(input: &str) -> Self {
+        let mut query = Self {
+            plain: String::new(),
+            agent: vec![],
+            workspace: vec![],
+            path: vec![],
+            status: vec![],
+        };
+        let mut plain = Vec::new();
+        for raw in input.split_whitespace() {
+            let token = raw.to_lowercase();
+            if let Some(rest) = token.strip_prefix('!') {
+                push_token(&mut query.agent, rest);
+            } else if let Some(rest) = token.strip_prefix('@') {
+                push_token(&mut query.workspace, rest);
+            } else if let Some(rest) = token.strip_prefix('/') {
+                push_token(&mut query.path, rest);
+            } else if let Some(rest) = token.strip_prefix('#') {
+                push_token(&mut query.status, rest);
+            } else {
+                plain.push(token);
+            }
+        }
+        query.plain = plain.join(" ");
+        query
+    }
+
+    fn filters_match(&self, entry: &Entry) -> bool {
+        if !self.agent.is_empty() && entry.source != Source::Agent {
+            return false;
+        }
+        all_match(&self.agent, &agent_text(entry))
+            && all_match(&self.workspace, &workspace_text(entry))
+            && all_match(&self.path, &entry.path.display().to_string())
+            && all_match(&self.status, &entry.subtitle)
+    }
+}
+
+fn push_token(tokens: &mut Vec<String>, value: &str) {
+    if !value.is_empty() {
+        tokens.push(value.into());
+    }
+}
+
+fn all_match(tokens: &[String], haystack: &str) -> bool {
+    let haystack = haystack.to_lowercase();
+    tokens.iter().all(|token| haystack.contains(token))
+}
+
+fn agent_text(entry: &Entry) -> String {
+    entry
+        .title
+        .split('·')
+        .next()
+        .unwrap_or(&entry.title)
+        .to_string()
+}
+
+fn workspace_text(entry: &Entry) -> String {
+    format!(
+        "{} {} {}",
+        entry.workspace_id.as_deref().unwrap_or(""),
+        entry.workspace_label.as_deref().unwrap_or(""),
+        entry.title
+    )
+}
+
 fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: Vec<Entry>) {
     for e in incoming {
         let key = match &e.action {
@@ -290,10 +373,12 @@ mod tests {
             subtitle: String::new(),
             path: PathBuf::from(path),
             workspace_id: None,
+            workspace_label: None,
             agent_target: None,
             project: None,
             action: EntryAction::FocusOrCreateDir,
             source_label: None,
+            search_terms: vec![],
         }
     }
 
@@ -306,6 +391,40 @@ mod tests {
             tab_count: 1,
             pane_count: 1,
         }
+    }
+
+    fn agent_entry() -> Entry {
+        Entry {
+            source: Source::Agent,
+            title: "claude · Dotfiles · dotfiles".into(),
+            subtitle: "idle · wF:p2 · wF:t2".into(),
+            path: PathBuf::from("/home/fenix/dotfiles"),
+            workspace_id: Some("wF".into()),
+            workspace_label: Some("Dotfiles".into()),
+            agent_target: Some("term_1".into()),
+            project: None,
+            action: EntryAction::FocusAgent {
+                target: "term_1".into(),
+            },
+            source_label: None,
+            search_terms: vec!["main ai dot".into()],
+        }
+    }
+
+    #[test]
+    fn agent_token_filters_match_identity_parts() {
+        let agent = agent_entry();
+
+        assert!(Query::parse("!claude @dot /dot #idle").filters_match(&agent));
+        assert!(Query::parse("@wF").filters_match(&agent));
+        assert!(!Query::parse("!codex").filters_match(&agent));
+        assert!(!Query::parse("!dotfiles").filters_match(&agent));
+        assert!(!Query::parse("!claude").filters_match(&entry(Source::Project, "/tmp", "claude")));
+    }
+
+    #[test]
+    fn agent_aliases_are_searchable_plain_text() {
+        assert!(agent_entry().haystack().contains("main ai dot"));
     }
 
     #[test]
