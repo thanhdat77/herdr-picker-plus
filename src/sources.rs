@@ -115,11 +115,11 @@ pub(crate) fn collect_agents(
                 .get("terminal_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or(pane);
-            let cwd = p
+            let cwd = p.get("cwd").and_then(|v| v.as_str()).unwrap_or("/");
+            let foreground_cwd = p
                 .get("foreground_cwd")
-                .or_else(|| p.get("cwd"))
                 .and_then(|v| v.as_str())
-                .unwrap_or("/");
+                .unwrap_or(cwd);
             let status = p
                 .get("agent_status")
                 .and_then(|v| v.as_str())
@@ -147,6 +147,8 @@ pub(crate) fn collect_agents(
                 workspace_id.into(),
                 workspace_label.into(),
                 dir,
+                basename(&PathBuf::from(foreground_cwd)),
+                foreground_cwd.into(),
             ];
             search_terms.extend(alias_terms);
             entries.push(Entry {
