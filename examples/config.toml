@@ -1,0 +1,22 @@
+[picker]
+reuse_existing = true
+create_missing = true
+
+[sources]
+open_workspaces = true
+herdr_plus_projects = true
+zoxide = true
+roots = true
+agents = true
+
+[theme]
+# Reads ~/.config/herdr/config.toml [theme.custom] and falls back to Catppuccin.
+inherit_herdr = true
+
+[[roots]]
+path = "~/workspace"
+max_depth = 3
+
+[[roots]]
+path = "~/projects"
+max_depth = 3
