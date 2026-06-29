@@ -1,12 +1,22 @@
 # Herdr Picker Plus
 
-Herdr Picker Plus is a Herdr-native **picker center**: one overlay for jumping to workspaces, projects, directories, servers, agents, and Herdr Plus actions.
+Herdr Picker Plus turns Herdr into a **command center for where you work next**.
+
+Stop remembering whether something is an open workspace, a project template, a zoxide directory, an SSH host, or an agent pane. Hit one key, type what you remember, press Enter.
 
 ```text
-prefix+t -> search -> Enter
+Ctrl-T / prefix+t -> type -> Enter
 ```
 
-It is similar in spirit to `tv`, but deeply integrated with Herdr. Instead of only selecting a path, it can focus existing Herdr state, create workspaces, apply Herdr Plus project layouts, open SSH servers, focus agents, and launch Herdr Plus Quick Actions.
+Picker Plus is built for people who live in terminals all day:
+
+- jump back to open workspaces instead of creating duplicates
+- open project layouts with Herdr Plus tabs already wired up
+- turn SSH hosts into local Herdr workspaces with a `remote` tab
+- focus busy agent panes without hunting through tabs
+- add your own tools with a tiny command/JSON contract
+
+It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, connect, launch, and reuse.
 
 ## Overview
 
@@ -511,6 +521,11 @@ zoxide query -l
 
 ## Design notes
 
-Herdr plugin v1 does not expose the active theme palette directly to external plugins. The picker reads Herdr config and maps supported theme names locally, with `[theme.custom]` overrides applied last.
+Picker Plus is intentionally small and Herdr-native:
 
-Herdr plugin v1 also does not expose a native non-terminal custom UI API. This plugin follows the current Herdr-native pattern: an action opens a managed overlay pane, and the interactive TUI runs inside that pane.
+- **Reuse first**: if the matching workspace already exists, focus it instead of creating another one.
+- **Source-aware identity**: a project workspace and a plain directory workspace can share the same cwd without stealing each other.
+- **Servers stay boring**: server entries read `~/.ssh/config` and open `ssh TARGET` inside a local `server: NAME` workspace; no nested `herdr --remote`, no extra server-side config requirement.
+- **Optional integrations**: Herdr Plus, zoxide, and command/JSON integrations are useful when present and quiet when missing.
+- **Theme matching is pragmatic**: Herdr plugin v1 does not expose the active palette, so Picker Plus reads Herdr config and maps supported theme names locally, then applies `[theme.custom]` overrides.
+- **UI follows plugin v1**: Herdr does not expose a native non-terminal custom UI API yet, so the action opens a managed overlay pane and the Rust TUI runs inside it.
