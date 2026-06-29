@@ -30,6 +30,7 @@ pub(crate) struct App {
 
 impl App {
     pub(crate) fn new(config: Config, theme: Theme) -> Self {
+        let preview = config.picker.preview;
         Self {
             config,
             theme,
@@ -39,7 +40,7 @@ impl App {
             selected: 0,
             query: String::new(),
             source_filter: None,
-            preview: true,
+            preview,
             path_to_workspaces: HashMap::new(),
         }
     }

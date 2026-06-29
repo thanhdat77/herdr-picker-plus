@@ -38,6 +38,8 @@ pub(crate) struct PickerConfig {
     pub(crate) source_priority_boost: i64,
     #[serde(default = "default_agent_sort")]
     pub(crate) agent_sort: String,
+    #[serde(default = "yes")]
+    pub(crate) preview: bool,
 }
 #[derive(Clone, Deserialize)]
 pub(crate) struct SourcesConfig {
@@ -162,6 +164,7 @@ impl Default for PickerConfig {
             source_order: default_source_order(),
             source_priority_boost: default_source_priority_boost(),
             agent_sort: default_agent_sort(),
+            preview: true,
         }
     }
 }

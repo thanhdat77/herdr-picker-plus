@@ -31,6 +31,9 @@ source_priority_boost = 25
 # - spaces: keep Herdr/pane order
 agent_sort = "herdr"
 
+# Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
+preview = true
+
 [sources]
 # Existing Herdr workspaces. Selecting focuses the workspace.
 open_workspaces = true

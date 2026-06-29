@@ -193,6 +193,7 @@ engine = "nucleo" # nucleo | skim | simple
 source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
 source_priority_boost = 25
 agent_sort = "herdr" # herdr | priority | spaces
+preview = true
 
 [sources]
 open_workspaces = true
@@ -307,6 +308,7 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
 source_priority_boost = 25
 agent_sort = "herdr" # herdr | priority | spaces
+preview = true
 ```
 
 Accepted names:
