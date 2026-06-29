@@ -18,6 +18,8 @@ Picker Plus is built for people who live in terminals all day:
 
 It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, connect, launch, and reuse.
 
+![Herdr Picker Plus screenshot](docs/assets/herdr-picker-plus.png)
+
 ## Overview
 
 ### What makes it stand out

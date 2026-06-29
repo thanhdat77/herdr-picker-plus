@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-29
+
 ### Added
 - Command/JSON plugin integration contract via `[[integrations]]`.
 - Herdr success/error notifications for selected actions.
