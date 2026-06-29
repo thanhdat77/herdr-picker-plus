@@ -193,23 +193,46 @@ fn draw(f: &mut Frame, app: &App) {
 }
 
 fn draw_list(f: &mut Frame, app: &App, area: Rect) {
+    let show_scores = !app.query.trim().is_empty();
+    let row_width = area.width.saturating_sub(3) as usize;
     let items: Vec<ListItem> = app
         .filtered
         .iter()
-        .map(|idx| {
+        .enumerate()
+        .map(|(row, idx)| {
             let e = &app.entries[*idx];
             let color = source_color(&app.theme, &e.source);
-            ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!("[{:<7}] ", truncate(e.source_name(), 7)),
-                    Style::default().fg(color),
-                ),
+            let source = format!("[{:<7}] ", truncate(e.source_name(), 7));
+            let subtitle = if e.subtitle.is_empty() {
+                String::new()
+            } else {
+                format!("  {}", e.subtitle)
+            };
+            let score = show_scores
+                .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
+                .flatten();
+            let left_len =
+                source.chars().count() + e.title.chars().count() + subtitle.chars().count();
+            let spacer = score
+                .as_ref()
+                .map(|s| {
+                    " ".repeat(
+                        row_width
+                            .saturating_sub(left_len + s.chars().count())
+                            .max(2),
+                    )
+                })
+                .unwrap_or_default();
+            let mut spans = vec![
+                Span::styled(source, Style::default().fg(color)),
                 Span::styled(&e.title, Style::default().fg(app.theme.text)),
-                Span::styled(
-                    format!("  {}", e.subtitle),
-                    Style::default().fg(app.theme.subtext0),
-                ),
-            ]))
+                Span::styled(subtitle, Style::default().fg(app.theme.subtext0)),
+            ];
+            if let Some(score) = score {
+                spans.push(Span::raw(spacer));
+                spans.push(Span::styled(score, Style::default().fg(app.theme.overlay0)));
+            }
+            ListItem::new(Line::from(spans))
         })
         .collect();
     let mut state = ListState::default();

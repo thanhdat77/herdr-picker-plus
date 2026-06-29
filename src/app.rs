@@ -20,6 +20,7 @@ pub(crate) struct App {
     pub(crate) theme: Theme,
     pub(crate) entries: Vec<Entry>,
     pub(crate) filtered: Vec<usize>,
+    pub(crate) filtered_scores: Vec<i64>,
     pub(crate) selected: usize,
     pub(crate) query: String,
     pub(crate) source_filter: Option<Source>,
@@ -34,6 +35,7 @@ impl App {
             theme,
             entries: vec![],
             filtered: vec![],
+            filtered_scores: vec![],
             selected: 0,
             query: String::new(),
             source_filter: None,
@@ -125,7 +127,9 @@ impl App {
                     }
                 })
         });
-        self.filtered = scored.into_iter().map(|(_, idx)| idx).collect();
+        let (scores, filtered): (Vec<_>, Vec<_>) = scored.into_iter().unzip();
+        self.filtered = filtered;
+        self.filtered_scores = scores;
         self.selected = 0;
     }
 
