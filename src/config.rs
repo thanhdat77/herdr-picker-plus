@@ -149,7 +149,7 @@ fn default_source_order() -> Vec<String> {
     .collect()
 }
 fn default_source_priority_boost() -> i64 {
-    25
+    5
 }
 fn default_agent_sort() -> String {
     "herdr".into()

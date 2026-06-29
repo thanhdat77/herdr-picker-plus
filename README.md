@@ -191,7 +191,7 @@ reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
 source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
-source_priority_boost = 25
+source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 
@@ -306,7 +306,7 @@ Earlier sources get a ranking bonus and appear first on an empty query:
 ```toml
 [picker]
 source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
-source_priority_boost = 25
+source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
 ```

@@ -23,7 +23,7 @@ source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "qu
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
-source_priority_boost = 25
+source_priority_boost = 5
 
 # Agent view sorting for `@` and Ctrl-A:
 # - herdr: read Herdr's agent_panel_sort setting
