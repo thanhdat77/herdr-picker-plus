@@ -133,8 +133,8 @@ fn default_engine() -> String {
 }
 fn default_source_order() -> Vec<String> {
     [
-        "workspace",
         "agent",
+        "workspace",
         "project",
         "server",
         "zoxide",
@@ -257,13 +257,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_source_order_prioritizes_open_workspaces_then_agents() {
+    fn default_source_order_prioritizes_agents_then_open_workspaces() {
         let picker = PickerConfig::default();
 
-        assert_eq!(picker.source_rank(&Source::Workspace), 0);
-        assert_eq!(picker.source_rank(&Source::Agent), 1);
-        assert!(picker.source_bonus(&Source::Workspace) > picker.source_bonus(&Source::Agent));
-        assert!(picker.source_bonus(&Source::Agent) > picker.source_bonus(&Source::Project));
+        assert_eq!(picker.source_rank(&Source::Agent), 0);
+        assert_eq!(picker.source_rank(&Source::Workspace), 1);
+        assert!(picker.source_bonus(&Source::Agent) > picker.source_bonus(&Source::Workspace));
+        assert!(picker.source_bonus(&Source::Workspace) > picker.source_bonus(&Source::Project));
     }
 
     #[test]
