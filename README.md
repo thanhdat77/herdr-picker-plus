@@ -1,6 +1,6 @@
 # Herdr Picker Plus
 
-Herdr Picker Plus turns Herdr into a **customizable command center for moving anywhere in your workflow**.
+**Moving anywhere in your workflow**. 
 
 Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. It is built for fast context switching: type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
 
