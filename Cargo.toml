@@ -2,7 +2,7 @@
 name = "herdr-picker-plus"
 version = "0.2.0"
 edition = "2021"
-description = "Herdr-native overlay picker for workdirs, workspaces, zoxide, projects, and agents"
+description = "Move anywhere in your Herdr workflow from one native picker"
 license = "MIT"
 readme = "README.md"
 keywords = ["herdr", "terminal", "tui", "workspace", "picker"]

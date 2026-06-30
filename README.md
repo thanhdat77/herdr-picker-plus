@@ -1,8 +1,8 @@
 # Herdr Picker Plus
 
-**Moving anywhere in your workflow**. 
+**Move Anywhere in Your Herdr Workflow.**
 
-Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. It is built for fast context switching: type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
+Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. Type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
 
 ```text
 Ctrl-T / prefix+t -> type -> Enter
