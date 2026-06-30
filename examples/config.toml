@@ -19,6 +19,7 @@ servers = true
 herdr_plus_quick_actions = true
 
 [servers]
+base_dir = "~"
 ssh_config = true
 
 [theme]

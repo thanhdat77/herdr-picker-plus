@@ -61,6 +61,8 @@ pub(crate) struct SourcesConfig {
 
 #[derive(Clone, Deserialize)]
 pub(crate) struct ServersConfig {
+    #[serde(default = "default_server_base_dir")]
+    pub(crate) base_dir: String,
     #[serde(default = "yes")]
     pub(crate) ssh_config: bool,
     #[serde(default)]
@@ -154,6 +156,9 @@ fn default_source_priority_boost() -> i64 {
 fn default_agent_sort() -> String {
     "herdr".into()
 }
+fn default_server_base_dir() -> String {
+    "~".into()
+}
 
 impl Default for PickerConfig {
     fn default() -> Self {
@@ -200,6 +205,7 @@ impl Default for SourcesConfig {
 impl Default for ServersConfig {
     fn default() -> Self {
         Self {
+            base_dir: default_server_base_dir(),
             ssh_config: true,
             entries: vec![],
         }

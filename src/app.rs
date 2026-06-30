@@ -254,6 +254,12 @@ impl App {
             return Err("create_missing=false and no server workspace exists".into());
         }
         let label = format!("server: {}", e.title);
+        fs::create_dir_all(&e.path).map_err(|err| {
+            format!(
+                "failed to create server base dir {}: {err}",
+                e.path.display()
+            )
+        })?;
         let json = herdr_json([
             "workspace",
             "create",

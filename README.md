@@ -204,6 +204,7 @@ agents = true
 servers = true
 
 [servers]
+base_dir = "~"
 ssh_config = true
 
 [theme]
@@ -248,6 +249,7 @@ Servers come from `~/.ssh/config` by default. Use `Ctrl-S` to show only servers,
 
 ```toml
 [servers]
+base_dir = "~"
 ssh_config = true
 
 [[servers.entries]]

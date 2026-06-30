@@ -63,6 +63,9 @@ herdr_plus_quick_actions = true
 inherit_herdr = true
 
 [servers]
+# Base cwd for server workspaces. The directory is created on connect if missing.
+base_dir = "~"
+
 # Read hosts from ~/.ssh/config.
 ssh_config = true
 

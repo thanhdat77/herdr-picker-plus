@@ -105,6 +105,7 @@ pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
                     host.user.as_deref(),
                     Some(&host.name),
                     &[],
+                    &config.servers.base_dir,
                 )
             }));
         }
@@ -116,6 +117,7 @@ pub(crate) fn collect_servers(config: &Config) -> Vec<Entry> {
             server.user.as_deref(),
             server.target.as_deref(),
             &server.tags,
+            &config.servers.base_dir,
         )
     }));
     entries
@@ -127,6 +129,7 @@ fn server_entry(
     user: Option<&str>,
     target_override: Option<&str>,
     tags: &[String],
+    base_dir: &str,
 ) -> Entry {
     let target = target_override
         .map(str::to_string)
@@ -135,7 +138,7 @@ fn server_entry(
             (_, Some(host)) => host.to_string(),
             _ => name.to_string(),
         });
-    let path = home();
+    let path = expand_path(base_dir);
     let subtitle = format!("ssh {target}");
     let mut search_terms = vec![name.into(), target.clone()];
     if let Some(host) = host {
@@ -399,10 +402,12 @@ mod tests {
             Some("ubuntu"),
             Some("prod-api"),
             &["logs".into(), "prod".into()],
+            "~/workspace/server",
         );
 
         assert_eq!(entry.source, Source::Server);
         assert_eq!(entry.title, "logs-prod");
+        assert_eq!(entry.path, home().join("workspace/server"));
         assert!(entry.haystack().contains("logs"));
         assert!(matches!(
             entry.action,
