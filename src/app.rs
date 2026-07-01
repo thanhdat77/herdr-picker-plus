@@ -216,6 +216,30 @@ impl App {
         }
     }
 
+    pub(crate) fn close_selected_workspace(&mut self) -> Result<(), String> {
+        let (id, title) = {
+            let e = self.selected_entry().ok_or("nothing selected")?;
+            let id = self
+                .workspace_to_close(e)
+                .ok_or("no open workspace for selected item")?;
+            (id, e.title.clone())
+        };
+        run_herdr(["workspace", "close", &id])?;
+        notify_done(&format!("Closed {title}"));
+        self.refresh();
+        Ok(())
+    }
+
+    fn workspace_to_close(&self, e: &Entry) -> Option<String> {
+        match e.source {
+            Source::Workspace | Source::Agent => e.workspace_id.clone(),
+            Source::Project => self.matching_project_workspace(e).map(|ws| ws.id.clone()),
+            Source::Server => self.matching_server_workspace(e).map(|ws| ws.id.clone()),
+            Source::Zoxide | Source::Root => self.matching_dir_workspace(e).map(|ws| ws.id.clone()),
+            Source::QuickAction | Source::Integration => None,
+        }
+    }
+
     pub(crate) fn open_project(&self, e: &Entry) -> Result<(), String> {
         if self.config.picker.reuse_existing {
             if let Some(ws) = self.matching_project_workspace(e) {
@@ -279,7 +303,7 @@ impl App {
             .pointer("/result/root_pane/pane_id")
             .and_then(|v| v.as_str())
         {
-            let command = format!("ssh {}", shell_quote(target));
+            let command = ssh_connect_command(target);
             let _ = run_herdr(["pane", "run", pane, &command]);
         }
         Ok(())
@@ -481,6 +505,13 @@ fn workspace_text(entry: &Entry) -> String {
     )
 }
 
+fn ssh_connect_command(target: &str) -> String {
+    let target = shell_quote(target);
+    format!(
+        "if command -v autossh >/dev/null 2>&1; then exec autossh -M 0 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; else exec ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; fi"
+    )
+}
+
 fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
@@ -635,6 +666,53 @@ mod tests {
 
         assert_eq!(app.matching_project_workspace(&project).unwrap().id, "w1");
         assert_eq!(app.matching_dir_workspace(&dir).unwrap().id, "w2");
+    }
+
+    #[test]
+    fn server_command_prefers_autossh_with_keepalive_fallback() {
+        let command = ssh_connect_command("prod-api");
+
+        assert!(command.contains("command -v autossh"));
+        assert!(command.contains("autossh -M 0"));
+        assert!(command.contains("ServerAliveInterval=10"));
+        assert!(command.contains("ServerAliveCountMax=3"));
+        assert!(command.contains("else exec ssh"));
+        assert!(command.contains("'prod-api'"));
+    }
+
+    #[test]
+    fn close_target_matches_entry_kind() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.path_to_workspaces.insert(
+            "/tmp".into(),
+            vec![
+                workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
+                workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
+                workspace("w3", "server: prod", WorkspaceKind::Server, "/tmp"),
+            ],
+        );
+
+        let mut project = entry(Source::Project, "/tmp", "tmp");
+        project.project = Some(Project {
+            name: "tmp".into(),
+            description: String::new(),
+            working_dir: "/tmp".into(),
+            tabs: vec![],
+        });
+        let dir = entry(Source::Root, "/tmp", "tmp");
+        let server = Entry {
+            source: Source::Server,
+            title: "prod".into(),
+            workspace_label: Some("server: prod".into()),
+            action: EntryAction::OpenServer {
+                target: "prod".into(),
+            },
+            ..entry(Source::Server, "/tmp", "prod")
+        };
+
+        assert_eq!(app.workspace_to_close(&project), Some("w1".into()));
+        assert_eq!(app.workspace_to_close(&dir), Some("w2".into()));
+        assert_eq!(app.workspace_to_close(&server), Some("w3".into()));
     }
 
     #[test]

@@ -51,7 +51,8 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
-# SSH/manual server entries. Selecting opens `ssh TARGET` in a server workspace.
+# SSH/manual server entries. Selecting opens `autossh` if installed, otherwise `ssh`,
+# with keepalive options in a server workspace.
 servers = true
 
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.

@@ -28,7 +28,7 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 - **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
 - **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
-- **Fast server access**: `Ctrl-S` filters SSH/manual server entries and opens them in reuse-first Herdr workspaces.
+- **Fast server access**: `Ctrl-S` filters SSH/manual server entries and opens them in reuse-first Herdr workspaces, using `autossh` when available.
 - **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
 - **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
 - **Plugin integration contract**: other tools can appear in the picker with a simple command/JSON list-open API.
@@ -53,7 +53,8 @@ Server access stays as boring as SSH itself:
 - reads hosts from `~/.ssh/config`
 - allows optional `[[servers.entries]]` for aliases or explicit targets
 - uses `Ctrl-S` to filter servers only; no extra query prefix
-- creates/focuses a local `server: NAME` workspace, then runs `ssh TARGET` in its first tab
+- creates/focuses a local `server: NAME` workspace, then runs `autossh` when installed, otherwise `ssh`
+- always adds SSH keepalive options: `ServerAliveInterval=10`, `ServerAliveCountMax=3`, `TCPKeepAlive=yes`
 
 ## Requirements
 
@@ -165,6 +166,7 @@ prefix+t
 | `Ctrl-R` | roots only |
 | `Ctrl-S` | servers only |
 | `Ctrl-A` | agents only |
+| `Ctrl-X` | close the selected/open matching workspace |
 | `@` | same as `Ctrl-A`: show all agents, using configured agent sort |
 | `!text` | match agent name, for example `!claude` |
 | `@text` | agent-only match by workspace/session label/id or status, for example `@dotfiles` or `@idle` |

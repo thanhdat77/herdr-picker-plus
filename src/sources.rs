@@ -139,7 +139,7 @@ fn server_entry(
             _ => name.to_string(),
         });
     let path = expand_path(base_dir);
-    let subtitle = format!("ssh {target}");
+    let subtitle = format!("autossh/ssh {target}");
     let mut search_terms = vec![name.into(), target.clone()];
     if let Some(host) = host {
         search_terms.push(host.into());

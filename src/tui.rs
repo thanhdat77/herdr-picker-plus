@@ -40,6 +40,11 @@ pub(crate) fn tui_loop(app: &mut App) -> io::Result<()> {
                     }
                     return Ok(());
                 }
+                Action::CloseWorkspace => {
+                    if let Err(e) = app.close_selected_workspace() {
+                        crate::herdr::notify_error(&format!("Close failed: {e}"));
+                    }
+                }
             },
             _ => {}
         }
@@ -65,6 +70,7 @@ enum Action {
     Continue,
     Quit,
     Open,
+    CloseWorkspace,
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Action {
@@ -82,6 +88,7 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Action {
                 app.query.clear();
                 app.set_filter(None);
             }
+            KeyCode::Char('x') => return Action::CloseWorkspace,
             KeyCode::Char('c') => return Action::Quit,
             _ => {}
         }
@@ -181,7 +188,7 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = "Ctrl-S servers  @/Ctrl-A agents  !agent @workspace/status /path  Ctrl-O preview  Enter open  Esc quit";
+    let help = "Ctrl-S servers  @/Ctrl-A agents  Ctrl-X close workspace  Ctrl-O preview  Enter open  Esc quit";
     f.render_widget(
         Paragraph::new(help).style(
             Style::default()
