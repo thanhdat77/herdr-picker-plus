@@ -17,8 +17,6 @@ pub(crate) struct Config {
     #[serde(default)]
     pub(crate) roots: Vec<RootConfig>,
     #[serde(default)]
-    pub(crate) servers: ServersConfig,
-    #[serde(default)]
     pub(crate) integrations: Vec<IntegrationConfig>,
     #[serde(default)]
     pub(crate) agent_aliases: Vec<AgentAliasConfig>,
@@ -54,29 +52,7 @@ pub(crate) struct SourcesConfig {
     #[serde(default = "yes")]
     pub(crate) agents: bool,
     #[serde(default = "yes")]
-    pub(crate) servers: bool,
-    #[serde(default = "yes")]
     pub(crate) herdr_plus_quick_actions: bool,
-}
-
-#[derive(Clone, Deserialize)]
-pub(crate) struct ServersConfig {
-    #[serde(default = "default_server_base_dir")]
-    pub(crate) base_dir: String,
-    #[serde(default = "yes")]
-    pub(crate) ssh_config: bool,
-    #[serde(default)]
-    pub(crate) entries: Vec<ServerEntryConfig>,
-}
-
-#[derive(Clone, Deserialize)]
-pub(crate) struct ServerEntryConfig {
-    pub(crate) name: String,
-    pub(crate) host: Option<String>,
-    pub(crate) user: Option<String>,
-    pub(crate) target: Option<String>,
-    #[serde(default)]
-    pub(crate) tags: Vec<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -156,9 +132,6 @@ fn default_source_priority_boost() -> i64 {
 fn default_agent_sort() -> String {
     "herdr".into()
 }
-fn default_server_base_dir() -> String {
-    "~".into()
-}
 
 impl Default for PickerConfig {
     fn default() -> Self {
@@ -197,21 +170,10 @@ impl Default for SourcesConfig {
             zoxide: true,
             roots: true,
             agents: true,
-            servers: true,
             herdr_plus_quick_actions: true,
         }
     }
 }
-impl Default for ServersConfig {
-    fn default() -> Self {
-        Self {
-            base_dir: default_server_base_dir(),
-            ssh_config: true,
-            entries: vec![],
-        }
-    }
-}
-
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
@@ -225,7 +187,6 @@ impl Default for Config {
             picker: PickerConfig::default(),
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
-            servers: ServersConfig::default(),
             integrations: vec![],
             agent_aliases: vec![],
             roots: vec![
@@ -294,28 +255,6 @@ mod tests {
         assert_eq!(config.integrations[0].label, "Bookmarks");
         assert!(!config.integrations[0].notify_success);
         assert!(config.integrations[0].notify_error);
-    }
-
-    #[test]
-    fn parses_server_config() {
-        let config: Config = toml::from_str(
-            r#"
-            [servers]
-            ssh_config = false
-
-            [[servers.entries]]
-            name = "prod-api"
-            host = "10.0.0.5"
-            user = "ubuntu"
-            tags = ["prod", "api"]
-            "#,
-        )
-        .unwrap();
-
-        assert!(!config.servers.ssh_config);
-        assert_eq!(config.servers.entries.len(), 1);
-        assert_eq!(config.servers.entries[0].name, "prod-api");
-        assert_eq!(config.servers.entries[0].tags, ["prod", "api"]);
     }
 
     #[test]

@@ -51,9 +51,8 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
-# SSH/manual server entries. Selecting opens `autossh` if installed, otherwise `ssh`,
-# with keepalive options in a server workspace.
-servers = true
+# Server entries are provided by the optional herdr-server-aware integration below.
+servers = false
 
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
 herdr_plus_quick_actions = true
@@ -62,26 +61,6 @@ herdr_plus_quick_actions = true
 # Reads ~/.config/herdr/config.toml theme name and [theme.custom] tokens when available.
 # Falls back to the built-in One Light palette.
 inherit_herdr = true
-
-[servers]
-# Parent directory for per-server workspaces: base_dir/<server-name>.
-# The directory and .herdr-server.toml are created on connect if missing.
-base_dir = "~"
-
-# Read hosts from ~/.ssh/config.
-ssh_config = true
-
-# Optional manual servers. Use target to override the host passed to `ssh`.
-# [[servers.entries]]
-# name = "prod-api"
-# host = "10.0.0.5"
-# user = "ubuntu"
-# tags = ["prod", "api"]
-#
-# [[servers.entries]]
-# name = "prod-shortcut"
-# target = "prod-api"
-# tags = ["prod"]
 
 # Keep roots short; zoxide should handle most frequent directories.
 [[roots]]
@@ -112,4 +91,14 @@ max_depth = 3
 # collect = "bookmarks list --json"
 # open = "bookmarks open {{id}}"
 # notify_success = true
+# notify_error = true
+#
+# Optional: servers from the separate herdr-server-aware plugin.
+# [[integrations]]
+# id = "server-aware"
+# label = "server"
+# enabled = true
+# collect = "herdr-server-aware list"
+# open = "herdr-server-aware open {{id}}"
+# notify_success = false
 # notify_error = true

@@ -11,7 +11,7 @@ use crate::{
     matcher::match_score,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
     paths::{canonical_str, herdr_plus_quick_actions_dir, home},
-    sources::{collect_agents, collect_roots, collect_servers, collect_workspaces, collect_zoxide},
+    sources::{collect_agents, collect_roots, collect_workspaces, collect_zoxide},
     theme::Theme,
 };
 
@@ -68,9 +68,6 @@ impl App {
                 &workspace_entries,
                 &self.config.agent_aliases,
             ));
-        }
-        if self.config.sources.servers {
-            push_unique(&mut entries, &mut seen, collect_servers(&self.config));
         }
         if self.config.sources.herdr_plus_quick_actions && herdr_plus_quick_actions_dir().is_dir() {
             entries.push(herdr_plus::quick_actions_entry());
@@ -189,7 +186,6 @@ impl App {
             EntryAction::FocusOrCreateDir => {
                 (self.focus_or_create_dir(&e.path, &e.title), true, true)
             }
-            EntryAction::OpenServer { target } => (self.open_server(e, target), true, true),
             EntryAction::RunCommand {
                 command,
                 notify_success,
@@ -268,48 +264,6 @@ impl App {
         ])?;
         if let Some(p) = project {
             herdr_plus::bootstrap_project_tabs(p, &json, &e.path)?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn open_server(&self, e: &Entry, target: &str) -> Result<(), String> {
-        if self.config.picker.reuse_existing {
-            if let Some(ws) = self.matching_server_workspace(e) {
-                return run_herdr(["workspace", "focus", &ws.id]);
-            }
-        }
-        if !self.config.picker.create_missing {
-            return Err("create_missing=false and no server workspace exists".into());
-        }
-        let label = format!("server: {}", e.title);
-        fs::create_dir_all(&e.path).map_err(|err| {
-            format!(
-                "failed to create server dir {}: {err}",
-                e.path.display()
-            )
-        })?;
-        write_server_metadata(&e.path, target, &e.title)?;
-        let json = herdr_json([
-            "workspace",
-            "create",
-            "--cwd",
-            &e.path.display().to_string(),
-            "--label",
-            &label,
-            "--focus",
-        ])?;
-        if let Some(workspace_id) = json
-            .pointer("/result/workspace/workspace_id")
-            .and_then(|v| v.as_str())
-        {
-            let _ = run_herdr(["tab", "rename", &format!("{workspace_id}:t1"), "remote"]);
-        }
-        if let Some(pane) = json
-            .pointer("/result/root_pane/pane_id")
-            .and_then(|v| v.as_str())
-        {
-            let command = ssh_connect_command(target);
-            let _ = run_herdr(["pane", "run", pane, &command]);
         }
         Ok(())
     }
@@ -506,27 +460,6 @@ fn workspace_text(entry: &Entry) -> String {
     )
 }
 
-fn ssh_connect_command(target: &str) -> String {
-    let target = shell_quote(target);
-    format!(
-        "if command -v autossh >/dev/null 2>&1; then exec autossh -M 0 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; else exec ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; fi"
-    )
-}
-
-fn write_server_metadata(dir: &Path, target: &str, label: &str) -> Result<(), String> {
-    let text = format!(
-        "target = \"{}\"\nlabel = \"{}\"\nmode = \"ssh\"\n",
-        toml_escape(target),
-        toml_escape(label)
-    );
-    fs::write(dir.join(".herdr-server.toml"), text)
-        .map_err(|err| format!("failed to write server metadata: {err}"))
-}
-
-fn toml_escape(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
 fn launch_workspace_id() -> Option<String> {
     env::var("HERDR_PLUGIN_CONTEXT_JSON")
         .ok()
@@ -539,10 +472,6 @@ fn close_current_workspace_error(id: &str, current: Option<&str>) -> Option<Stri
     (current == Some(id)).then(|| {
         "can't close the workspace that owns this picker; switch away first".into()
     })
-}
-
-fn shell_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 fn agent_sort(configured: &str) -> String {
@@ -575,7 +504,6 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
     for e in incoming {
         let key = match &e.action {
             EntryAction::FocusWorkspace { id } => format!("open:{id}"),
-            EntryAction::OpenServer { target } => format!("server:{}:{target}", e.title),
             EntryAction::RunCommand { command, .. } => format!("{}:{command}", e.source_name()),
             _ => format!("{}:{}", e.source_name(), e.key()),
         };
@@ -714,18 +642,6 @@ mod tests {
     }
 
     #[test]
-    fn server_command_prefers_autossh_with_keepalive_fallback() {
-        let command = ssh_connect_command("prod-api");
-
-        assert!(command.contains("command -v autossh"));
-        assert!(command.contains("autossh -M 0"));
-        assert!(command.contains("ServerAliveInterval=10"));
-        assert!(command.contains("ServerAliveCountMax=3"));
-        assert!(command.contains("else exec ssh"));
-        assert!(command.contains("'prod-api'"));
-    }
-
-    #[test]
     fn close_target_matches_entry_kind() {
         let mut app = App::new(Config::default(), Theme::load(false));
         app.path_to_workspaces.insert(
@@ -749,8 +665,10 @@ mod tests {
             source: Source::Server,
             title: "prod".into(),
             workspace_label: Some("server: prod".into()),
-            action: EntryAction::OpenServer {
-                target: "prod".into(),
+            action: EntryAction::RunCommand {
+                command: "herdr-server-aware open prod".into(),
+                notify_success: false,
+                notify_error: true,
             },
             ..entry(Source::Server, "/tmp", "prod")
         };

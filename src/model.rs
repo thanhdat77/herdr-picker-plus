@@ -73,9 +73,6 @@ pub(crate) enum EntryAction {
         action: String,
     },
     FocusOrCreateDir,
-    OpenServer {
-        target: String,
-    },
     RunCommand {
         command: String,
         notify_success: bool,

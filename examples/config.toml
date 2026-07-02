@@ -15,12 +15,8 @@ herdr_plus_projects = true
 zoxide = true
 roots = true
 agents = true
-servers = true
+servers = false
 herdr_plus_quick_actions = true
-
-[servers]
-base_dir = "~"
-ssh_config = true
 
 [theme]
 inherit_herdr = true

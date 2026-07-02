@@ -58,8 +58,9 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
     let command = render_template(&integration.open, &item);
     let id = item.id.clone();
     let kind = item.kind.clone();
+    let source = if kind == "server" { Source::Server } else { Source::Integration };
     Entry {
-        source: Source::Integration,
+        source,
         title: item.title,
         subtitle,
         path,
@@ -72,7 +73,7 @@ fn entry_from_item(integration: &IntegrationConfig, item: IntegrationItem) -> En
             notify_success: integration.notify_success,
             notify_error: integration.notify_error,
         },
-        source_label: Some(integration.label.clone()),
+        source_label: (kind != "server").then(|| integration.label.clone()),
         search_terms: vec![id, kind],
     }
 }
@@ -159,6 +160,22 @@ mod tests {
             render_template("demo open {{id}} --title {{title}} --path {{path}}", &item),
             "demo open 'a b' --title 'It'\\''s fine' --path '/tmp/a b'"
         );
+    }
+
+    #[test]
+    fn server_kind_builds_server_source() {
+        let cfg = config();
+        let item = IntegrationItem {
+            id: "nn".into(),
+            title: "nn".into(),
+            subtitle: "autossh/ssh nn".into(),
+            path: Some("/tmp/server/nn".into()),
+            kind: "server".into(),
+        };
+        let entry = entry_from_item(&cfg, item);
+
+        assert_eq!(entry.source, Source::Server);
+        assert_eq!(entry.source_name(), "server");
     }
 
     #[test]

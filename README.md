@@ -28,7 +28,7 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 - **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
 - **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
-- **Fast server access**: `Ctrl-S` filters SSH/manual server entries and opens them in reuse-first Herdr workspaces, using `autossh` when available.
+- **Server plugin slot**: `Ctrl-S` filters server entries supplied by the separate `herdr-server-aware` plugin.
 - **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
 - **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
 - **Plugin integration contract**: other tools can appear in the picker with a simple command/JSON list-open API.
@@ -39,7 +39,7 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
-| `server` | `~/.ssh/config` + `[servers]` config | create/focus server workspace + connect tab |
+| `server` | optional `herdr-server-aware` integration | create/focus server workspace + connect tab |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
@@ -48,13 +48,7 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 
 ### Fast server access
 
-Server access stays as boring as SSH itself:
-
-- reads hosts from `~/.ssh/config`
-- allows optional `[[servers.entries]]` for aliases or explicit targets
-- uses `Ctrl-S` to filter servers only; no extra query prefix
-- creates/focuses a local `server: NAME` workspace, then runs `autossh` when installed, otherwise `ssh`
-- always adds SSH keepalive options: `ServerAliveInterval=10`, `ServerAliveCountMax=3`, `TCPKeepAlive=yes`
+Server access lives in the separate `herdr-server-aware` plugin. Picker only consumes its JSON list/open integration, so `Ctrl-S` still filters servers without Picker owning SSH config or reconnect logic.
 
 ## Requirements
 
@@ -203,11 +197,7 @@ herdr_plus_quick_actions = true
 zoxide = true
 roots = true
 agents = true
-servers = true
-
-[servers]
-base_dir = "~"
-ssh_config = true
+servers = false # use optional herdr-server-aware integration instead
 
 [theme]
 inherit_herdr = true
@@ -242,40 +232,25 @@ herdr_plus_quick_actions = false
 zoxide = true
 roots = true
 agents = true
-servers = true
+servers = false
 ```
 
 ### Server access
 
-Servers come from `~/.ssh/config` by default. Use `Ctrl-S` to show only servers, then type normally to search by name, host, user, tags, or target.
+Server access is provided by the separate `herdr-server-aware` plugin. Add it as a command/JSON integration so Picker can still show server entries under `Ctrl-S`:
 
 ```toml
-[servers]
-base_dir = "~"
-ssh_config = true
-
-[[servers.entries]]
-name = "prod-api"
-host = "10.0.0.5"
-user = "ubuntu"
-tags = ["prod", "api"]
-
-[[servers.entries]]
-name = "prod-shortcut"
-target = "prod-api"
-tags = ["prod"]
+[[integrations]]
+id = "server-aware"
+label = "server"
+enabled = true
+collect = "herdr-server-aware list"
+open = "herdr-server-aware open {{id}}"
+notify_success = false
+notify_error = true
 ```
 
-Selecting a server creates or focuses a local server workspace, writes server identity to `.herdr-server.toml`, then opens SSH in its first tab:
-
-```text
-workspace: server: NAME
-cwd: ~/workspace/server/NAME
-tab: remote
-cmd: autossh TARGET  # falls back to ssh
-```
-
-For hosts read from `~/.ssh/config`, `TARGET` is the `Host` alias so your SSH config, ProxyJump, IdentityFile, and keepalive settings still apply. The `herdr-server-aware` plugin can later use the metadata file so `prefix+c` in that workspace opens another connected server tab.
+`herdr-server-aware` owns SSH config, `.herdr-server.toml`, reconnects, and new server tabs; Picker only displays and opens the returned server entries.
 
 ### Agent search
 
