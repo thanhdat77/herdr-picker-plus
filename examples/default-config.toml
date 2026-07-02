@@ -27,7 +27,7 @@ source_priority_boost = 5
 
 # Agent view sorting for `@` and Ctrl-A:
 # - herdr: read Herdr's agent_panel_sort setting
-# - priority: blocking first, done second, then the rest
+# - priority: blocked/error, attention/request, done, working, then idle
 # - spaces: keep Herdr/pane order
 agent_sort = "herdr"
 

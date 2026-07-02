@@ -271,14 +271,21 @@ Selecting a server creates or focuses a local server workspace, then opens SSH i
 ```text
 workspace: server: NAME
 tab: remote
-cmd: ssh TARGET
+cmd: autossh TARGET  # falls back to ssh
 ```
 
 For hosts read from `~/.ssh/config`, `TARGET` is the `Host` alias so your SSH config, ProxyJump, IdentityFile, and keepalive settings still apply.
 
 ### Agent search
 
-Agent rows include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut and `Ctrl-A` use `picker.agent_sort`; default `herdr` reads Herdr's `agent_panel_sort`. Set `priority` for blocking first, done second, then the rest; set `spaces` to keep Herdr/pane order.
+Agent rows show a small status icon and include the agent name, workspace/session label, cwd, status, pane id, tab id, and terminal id in search. The `@` shortcut, `Ctrl-A`, and the empty default picker use `picker.agent_sort`; default `herdr` reads Herdr's `agent_panel_sort`. Set `priority` for blocked/error first, then attention/request, done, working, and idle; set `spaces` to keep Herdr/pane order.
+
+```text
+! blocked/error/fail
+✓ done/complete
+● working/running
+○ idle/unknown
+```
 
 Useful queries:
 

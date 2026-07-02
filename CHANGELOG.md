@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
+- `Ctrl-X` closes the selected/open matching workspace without closing the picker; the picker refuses to close its owning workspace.
+
+### Changed
+- Empty default picker results now honor agent status priority when `agent_sort = "priority"` or Herdr `agent_panel_sort = "priority"` is active.
+- Agent status priority is now: blocked/error/fail, attention/request/wait, done/complete, working/running, idle/unknown.
+- Server SSH commands prefer `autossh` when available and keep SSH alive with explicit keepalive options.
+- Picker footer uses compact Ctrl-style key hints.
+
 ## [0.2.0] - 2026-06-29
 
 ### Added
