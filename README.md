@@ -1,6 +1,6 @@
 # Herdr Picker Plus
 
-**Move Anywhere in Your Herdr Workflow.**
+**Fuzzy then Move Anywhere in Your Herdr Workflow.**
 
 Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. Type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
 
