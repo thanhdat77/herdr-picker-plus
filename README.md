@@ -266,15 +266,16 @@ target = "prod-api"
 tags = ["prod"]
 ```
 
-Selecting a server creates or focuses a local server workspace, then opens SSH in its first tab:
+Selecting a server creates or focuses a local server workspace, writes server identity to `.herdr-server.toml`, then opens SSH in its first tab:
 
 ```text
 workspace: server: NAME
+cwd: ~/workspace/server/NAME
 tab: remote
 cmd: autossh TARGET  # falls back to ssh
 ```
 
-For hosts read from `~/.ssh/config`, `TARGET` is the `Host` alias so your SSH config, ProxyJump, IdentityFile, and keepalive settings still apply.
+For hosts read from `~/.ssh/config`, `TARGET` is the `Host` alias so your SSH config, ProxyJump, IdentityFile, and keepalive settings still apply. The `herdr-server-aware` plugin can later use the metadata file so `prefix+c` in that workspace opens another connected server tab.
 
 ### Agent search
 

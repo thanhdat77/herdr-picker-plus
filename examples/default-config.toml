@@ -64,7 +64,8 @@ herdr_plus_quick_actions = true
 inherit_herdr = true
 
 [servers]
-# Base cwd for server workspaces. The directory is created on connect if missing.
+# Parent directory for per-server workspaces: base_dir/<server-name>.
+# The directory and .herdr-server.toml are created on connect if missing.
 base_dir = "~"
 
 # Read hosts from ~/.ssh/config.

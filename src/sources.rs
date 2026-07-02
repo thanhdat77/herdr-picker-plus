@@ -138,7 +138,7 @@ fn server_entry(
             (_, Some(host)) => host.to_string(),
             _ => name.to_string(),
         });
-    let path = expand_path(base_dir);
+    let path = expand_path(base_dir).join(name);
     let subtitle = format!("autossh/ssh {target}");
     let mut search_terms = vec![name.into(), target.clone()];
     if let Some(host) = host {
@@ -263,7 +263,7 @@ pub(crate) fn collect_agents(
                 .filter(|alias| alias.matches(agent, workspace_label, cwd))
                 .map(|alias| alias.alias.clone())
                 .collect();
-            let title = format!("{} {agent} · {workspace_label} · {dir}", agent_status_icon(status));
+            let title = format!("{agent} · {workspace_label} · {dir}");
             let subtitle = format!("{status} · {pane} · {tab}");
             let mut search_terms = vec![
                 agent.into(),
@@ -298,7 +298,7 @@ pub(crate) fn collect_agents(
     entries
 }
 
-fn agent_status_icon(status: &str) -> &'static str {
+pub(crate) fn agent_status_icon(status: &str) -> &'static str {
     let status = status.to_lowercase();
     if status.contains("block") || status.contains("error") || status.contains("fail") {
         "!"
@@ -428,7 +428,7 @@ mod tests {
 
         assert_eq!(entry.source, Source::Server);
         assert_eq!(entry.title, "logs-prod");
-        assert_eq!(entry.path, home().join("workspace/server"));
+        assert_eq!(entry.path, home().join("workspace/server/logs-prod"));
         assert!(entry.haystack().contains("logs"));
         assert!(matches!(
             entry.action,

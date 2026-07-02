@@ -17,6 +17,7 @@ use ratatui::{
 use crate::{
     app::App,
     model::{Entry, EntryAction, Source},
+    sources::agent_status_icon,
     theme::Theme,
 };
 
@@ -218,7 +219,12 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         .map(|(row, idx)| {
             let e = &app.entries[*idx];
             let color = source_color(&app.theme, &e.source);
-            let source = format!("[{:<7}] ", truncate(e.source_name(), 7));
+            let source_label = if e.source == Source::Agent {
+                format!("agent {}", agent_status_icon(&e.subtitle))
+            } else {
+                e.source_name().to_string()
+            };
+            let source = format!("[{:<7}] ", truncate(&source_label, 7));
             let subtitle = if e.subtitle.is_empty() {
                 String::new()
             } else {

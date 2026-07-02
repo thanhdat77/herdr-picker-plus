@@ -284,10 +284,11 @@ impl App {
         let label = format!("server: {}", e.title);
         fs::create_dir_all(&e.path).map_err(|err| {
             format!(
-                "failed to create server base dir {}: {err}",
+                "failed to create server dir {}: {err}",
                 e.path.display()
             )
         })?;
+        write_server_metadata(&e.path, target, &e.title)?;
         let json = herdr_json([
             "workspace",
             "create",
@@ -510,6 +511,20 @@ fn ssh_connect_command(target: &str) -> String {
     format!(
         "if command -v autossh >/dev/null 2>&1; then exec autossh -M 0 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; else exec ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes {target}; fi"
     )
+}
+
+fn write_server_metadata(dir: &Path, target: &str, label: &str) -> Result<(), String> {
+    let text = format!(
+        "target = \"{}\"\nlabel = \"{}\"\nmode = \"ssh\"\n",
+        toml_escape(target),
+        toml_escape(label)
+    );
+    fs::write(dir.join(".herdr-server.toml"), text)
+        .map_err(|err| format!("failed to write server metadata: {err}"))
+}
+
+fn toml_escape(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn launch_workspace_id() -> Option<String> {

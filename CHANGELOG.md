@@ -11,6 +11,7 @@ All notable changes to this project are documented here.
 ### Changed
 - Empty default picker results now honor agent status priority when `agent_sort = "priority"` or Herdr `agent_panel_sort = "priority"` is active.
 - Agent status priority is now: blocked/error/fail, attention/request/wait, done/complete, working/running, idle/unknown.
+- Server workspaces now use per-server directories and write `.herdr-server.toml` metadata for `herdr-server-aware`.
 - Server SSH commands prefer `autossh` when available and keep SSH alive with explicit keepalive options.
 - Picker footer uses compact Ctrl-style key hints.
 
