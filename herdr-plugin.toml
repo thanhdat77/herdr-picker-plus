@@ -14,8 +14,23 @@ title = "Picker Plus: open"
 contexts = ["workspace", "global"]
 command = ["./target/release/herdr-picker-plus", "open"]
 
+[[actions]]
+id = "open-side"
+title = "Picker Plus: side pane"
+contexts = ["workspace", "global"]
+command = ["./target/release/herdr-picker-plus", "open-side"]
+
 [[panes]]
 id = "picker"
 title = "Picker Plus"
 placement = "overlay"
 command = ["./target/release/herdr-picker-plus", "ui"]
+
+# Persistent side pane variant: stays open after Enter, toggled by the open-side
+# action (launch-or-focus, close when already focused). Title must stay in sync
+# with SIDE_PANE_LABEL in src/main.rs.
+[[panes]]
+id = "picker-side"
+title = "Picker Side"
+placement = "split"
+command = ["./target/release/herdr-picker-plus", "ui", "--side"]

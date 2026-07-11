@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Persistent side pane mode: the `open-side` action opens the picker in a right split (like herdr-file-viewer). Launch-or-focus, toggles closed when already focused, and the picker stays open after `Enter`.
 - Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
 - `Ctrl-X` closes the selected/open matching workspace without closing the picker; the picker refuses to close its owning workspace.
 - Built-in server/remote source from remote `[sessions.entries]`, using `herdr --remote TARGET --handoff`, plus local session entries from `herdr session list --json`.

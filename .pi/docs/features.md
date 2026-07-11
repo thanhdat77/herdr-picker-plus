@@ -6,6 +6,11 @@ One picker center that answers: “where do I want to work next, or what Herdr a
 
 Do not split into many specialized pickers unless the UX clearly needs it. The product direction is “kinda like tv, but deeply integrated with Herdr.”
 
+## Open modes
+
+- `open`: overlay pane, closes after `Enter` (the default, quick-jump flow).
+- `open-side`: persistent right split (`picker-side` pane entry), mirroring herdr-file-viewer UX — launch-or-focus, toggle closed when already focused, stays open after `Enter`. The toggle decision lives in `side_pane_decision()` in `src/main.rs` and matches panes by the `Picker Side` title.
+
 ## Sources
 
 Default source order:

@@ -26,7 +26,7 @@ const KEY_CTRL_X: &str = "⌃X";
 const KEY_CTRL_O: &str = "⌃O";
 const KEY_ENTER: &str = "↵";
 
-pub(crate) fn tui_loop(app: &mut App) -> io::Result<()> {
+pub(crate) fn tui_loop(app: &mut App, persist: bool) -> io::Result<()> {
     enable_raw_mode()?;
     let mut out = io::stdout();
     execute!(out, EnterAlternateScreen)?;
@@ -38,13 +38,21 @@ pub(crate) fn tui_loop(app: &mut App) -> io::Result<()> {
                 Action::Continue => {}
                 Action::Quit => break Ok(()),
                 Action::Open => {
+                    // leave the TUI while the action runs: herdr CLI output goes to
+                    // the normal screen instead of corrupting the alternate screen
                     cleanup_terminal(&mut terminal)?;
                     let outcome = app.open_selected();
                     if let Err(e) = outcome {
                         eprintln!("{e}");
                         wait_for_key();
                     }
-                    return Ok(());
+                    if !persist {
+                        return Ok(());
+                    }
+                    app.refresh();
+                    enable_raw_mode()?;
+                    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+                    terminal.clear()?;
                 }
                 Action::CloseWorkspace => {
                     if let Err(e) = app.close_selected_workspace() {

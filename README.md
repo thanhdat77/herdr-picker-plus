@@ -147,6 +147,24 @@ Now use:
 prefix+t
 ```
 
+## Side pane mode
+
+Open the picker as a persistent split beside your work (like the file viewer):
+
+```bash
+herdr plugin action invoke herdr-picker-plus.open-side
+```
+
+In side mode the picker stays open after `Enter`. Re-invoking the action focuses the side pane, and closes it when it is already focused (launch-or-focus, toggle on repeat). Optional keybinding:
+
+```toml
+[[keys.command]]
+key = "prefix+shift+t"
+type = "plugin_action"
+command = "herdr-picker-plus.open-side"
+description = "picker side pane"
+```
+
 ## Usage
 
 | Key | Action |
