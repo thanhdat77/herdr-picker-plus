@@ -57,7 +57,7 @@ Local session switching still reads `herdr session list --json`; selecting one r
 
 Required:
 
-- Herdr `0.7.0` or newer
+- Herdr `0.7.3` or newer
 
 Required only when building from source:
 
