@@ -2,7 +2,7 @@
 
 **Fuzzy then Move Anywhere in Your Herdr Workflow.**
 
-Jump between open workspaces, project templates, directories, SSH servers, agent panes, quick actions, and external tools from one Herdr-native overlay. Type what you remember, press Enter, and let Herdr focus, create, connect, or launch the right thing.
+Jump between remote Herdr servers, local sessions, open workspaces, project templates, directories, agent panes, quick actions, and external tools from one Herdr-native overlay. Type what you remember, press Enter, and let Herdr focus, create, hand off, attach, or launch the right thing.
 
 ```text
 Ctrl-T / prefix+t -> type -> Enter
@@ -10,12 +10,12 @@ Ctrl-T / prefix+t -> type -> Enter
 
 Why it matters:
 
-- **Enhance your workflow everywhere**: move across repos, servers, agents, actions, and directories without leaving Herdr.
-- **Deep Herdr integration**: reuse existing workspaces, open SSH hosts as Herdr server workspaces, focus agent panes, and launch Herdr Plus projects/actions.
-- **Fully customizable**: source order, ranking bias, preview pane, search engine, roots, servers, agent aliases, theme behavior, and integrations all live in config.
+- **Enhance your workflow everywhere**: move across servers, sessions, repos, agents, actions, and directories without leaving Herdr.
+- **Deep Herdr integration**: hand off to remote Herdr servers, attach local sessions, reuse existing workspaces, focus agent panes, and launch Herdr Plus projects/actions.
+- **Fully customizable**: source order, ranking bias, preview pane, search engine, roots, servers, sessions, agent aliases, theme behavior, and integrations all live in config.
 - **Easily extendable**: any tool or plugin can join the picker through a tiny command/JSON `collect` + `open` contract.
 
-It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, connect, launch, reuse, and extend.
+It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, attach, launch, reuse, and extend.
 
 ![Herdr Picker Plus screenshot](docs/assets/herdr-picker-plus.png)
 
@@ -23,12 +23,12 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 
 ### What makes it stand out
 
-- **Picker center for Herdr**: one place to search workspaces, projects, directories, servers, agents, and actions.
+- **Picker center for Herdr**: one place to search servers, sessions, workspaces, projects, directories, agents, and actions.
 - **Reuse-first workflow**: focuses matching open workspaces without confusing project and directory workspaces that share the same path.
 - **Herdr Plus integration**: opens Herdr Plus project templates and can jump into Herdr Plus Quick Actions.
 - **Workspace creation**: zoxide/root results can create a Herdr workspace directly.
 - **Agent-aware**: agent panes appear as searchable entries and can be focused from the picker.
-- **Server plugin slot**: `Ctrl-S` filters server entries supplied by the separate `herdr-server-aware` plugin.
+- **Remote handoff built in**: `Ctrl-S` filters configured Herdr remote targets and runs `herdr --remote TARGET --handoff`; local sessions stay separate.
 - **Theme-aware**: maps supported Herdr themes locally and applies `[theme.custom]` overrides.
 - **No external picker UI**: the TUI is built in Rust with `ratatui`; no `fzf`/`tv` runtime dependency.
 - **Plugin integration contract**: other tools can appear in the picker with a simple command/JSON list-open API.
@@ -39,16 +39,19 @@ It feels like a fuzzy finder, but it acts like Herdr: it can focus, create, conn
 | --- | --- | --- |
 | `workspace` | `herdr workspace list` + pane cwd | focus the exact selected workspace |
 | `project` | Herdr Plus `projects/*.toml` | focus existing cwd or create workspace + project tabs |
-| `server` | optional `herdr-server-aware` integration | create/focus server workspace + connect tab |
+| `server` | remote entries from `[sessions.entries]` | hand off to `herdr --remote TARGET --handoff` |
+| `session` | `herdr session list --json` + local `[sessions.entries]` | attach local session |
 | `quick` | Herdr Plus Quick Actions | open Quick Actions picker |
 | `zoxide` | `zoxide query -l` | focus existing cwd or create workspace |
 | `root` | configured filesystem roots | focus existing cwd or create workspace |
-| `agent` | agent panes from `herdr pane list` | focus agent pane |
+| `agent` | agents from `herdr agent list` | focus agent pane |
 | `plugin` | configured `[[integrations]]` commands | run configured open command |
 
-### Fast server access
+### Fast remote handoff
 
-Server access lives in the separate `herdr-server-aware` plugin. Picker only consumes its JSON list/open integration, so `Ctrl-S` still filters servers without Picker owning SSH config or reconnect logic.
+Remote handoff is built in. Picker reads manual remote `[sessions.entries]`; selecting one runs `herdr --remote TARGET --handoff` so Herdr switches to the remote server instead of nesting a remote session inside the picker.
+
+Local session switching still reads `herdr session list --json`; selecting one runs `herdr session attach NAME`.
 
 ## Requirements
 
@@ -158,8 +161,8 @@ prefix+t
 | `Ctrl-Q` | Herdr Plus Quick Actions only |
 | `Ctrl-Z` | zoxide only |
 | `Ctrl-R` | roots only |
-| `Ctrl-S` | servers only |
-| `Ctrl-A` | agents only |
+| `Ctrl-S` | servers/remotes only; configurable with `[picker.filter_keys]` |
+| `Ctrl-A` | agents only; configurable with `[picker.filter_keys]` |
 | `Ctrl-X` | close the selected/open matching workspace |
 | `@` | same as `Ctrl-A`: show all agents, using configured agent sort |
 | `!text` | match agent name, for example `!claude` |
@@ -185,10 +188,14 @@ On first run, the plugin creates `config.toml` from [`examples/default-config.to
 reuse_existing = true
 create_missing = true
 engine = "nucleo" # nucleo | skim | simple
-source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
+source_order = ["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
+
+# Optional shortcut overrides. Values accept "ctrl-x", "ctrl+x", "^x", or "x".
+# [picker.filter_keys]
+# server = "ctrl-g"
 
 [sources]
 open_workspaces = true
@@ -197,7 +204,8 @@ herdr_plus_quick_actions = true
 zoxide = true
 roots = true
 agents = true
-servers = false # use optional herdr-server-aware integration instead
+servers = true
+sessions = true
 
 [theme]
 inherit_herdr = true
@@ -232,25 +240,25 @@ herdr_plus_quick_actions = false
 zoxide = true
 roots = true
 agents = true
-servers = false
+servers = true
+sessions = true
 ```
 
-### Server access
+### Remote handoff and local sessions
 
-Server access is provided by the separate `herdr-server-aware` plugin. Add it as a command/JSON integration so Picker can still show server entries under `Ctrl-S`:
+Remote targets are built in and shown under `Ctrl-S` by default:
 
 ```toml
-[[integrations]]
-id = "server-aware"
-label = "server"
-enabled = true
-collect = "herdr-server-aware list"
-open = "herdr-server-aware open {{id}}"
-notify_success = false
-notify_error = true
+[sessions]
+local = true
+
+[[sessions.entries]]
+name = "prod"
+remote = "prod-api"
+tags = ["prod", "api"]
 ```
 
-`herdr-server-aware` owns SSH config, `.herdr-server.toml`, reconnects, and new server tabs; Picker only displays and opens the returned server entries.
+Remote entries run `herdr --remote TARGET --handoff`. Local sessions from `herdr session list --json` run `herdr session attach NAME`.
 
 ### Agent search
 
@@ -285,13 +293,25 @@ path = "dotfiles"     # optional
 
 All match fields are optional and use text-contains matching.
 
+### Change filter shortcuts
+
+Override source filter keys when `Ctrl-S` or another default conflicts with your terminal:
+
+```toml
+[picker.filter_keys]
+session = "ctrl-g"
+agent = "ctrl-a"
+```
+
+Accepted source names match `source_order`: `agent`, `server`, `workspace`, `project`, `session`, `zoxide`, `root`, `quick`. Values accept `ctrl-x`, `ctrl+x`, `^x`, or `x`.
+
 ### Change source priority
 
 Earlier sources get a ranking bonus and appear first on an empty query:
 
 ```toml
 [picker]
-source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
+source_order = ["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
@@ -300,7 +320,7 @@ preview = true
 Accepted names:
 
 ```text
-agent, workspace, open, project, server, zoxide, root, quick, plugin
+agent, server, remote, workspace, open, project, session, zoxide, root, quick, plugin
 ```
 
 Set the boost to zero for pure matcher score:
@@ -504,7 +524,7 @@ Picker Plus is intentionally small and Herdr-native:
 
 - **Reuse first**: if the matching workspace already exists, focus it instead of creating another one.
 - **Source-aware identity**: a project workspace and a plain directory workspace can share the same cwd without stealing each other.
-- **Servers stay boring**: server entries read `~/.ssh/config` and open `ssh TARGET` inside a local `server: NAME` workspace; no nested `herdr --remote`, no extra server-side config requirement.
+- **Remote handoff stays Herdr-native**: server entries call `herdr --remote TARGET --handoff`; local sessions call `herdr session attach`; no SSH terminal wrapper lives in Picker.
 - **Optional integrations**: Herdr Plus, zoxide, and command/JSON integrations are useful when present and quiet when missing.
 - **Theme matching is pragmatic**: Herdr plugin v1 does not expose the active palette, so Picker Plus reads Herdr config and maps supported theme names locally, then applies `[theme.custom]` overrides.
 - **UI follows plugin v1**: Herdr does not expose a native non-terminal custom UI API yet, so the action opens a managed overlay pane and the Rust TUI runs inside it.

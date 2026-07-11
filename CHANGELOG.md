@@ -7,11 +7,15 @@ All notable changes to this project are documented here.
 ### Added
 - Agent status icons in picker rows (`!`, `✓`, `●`, `○`) for faster scanning.
 - `Ctrl-X` closes the selected/open matching workspace without closing the picker; the picker refuses to close its owning workspace.
+- Built-in server/remote source from remote `[sessions.entries]`, using `herdr --remote TARGET --handoff`, plus local session entries from `herdr session list --json`.
 
 ### Changed
+- Agent source now uses the dedicated `herdr agent list` endpoint instead of filtering `herdr pane list`, and agents are searchable by their `agent_session` id.
+- Workspace rows surface the workspace-level `agent_status` from `herdr workspace list` in the subtitle, and match `focused`/status search terms.
+- Requires Herdr 0.7.3+ (`min_herdr_version` bumped for `agent list` and workspace `agent_status`).
 - Empty default picker results now honor agent status priority when `agent_sort = "priority"` or Herdr `agent_panel_sort = "priority"` is active.
 - Agent status priority is now: blocked/error/fail, attention/request/wait, done/complete, working/running, idle/unknown.
-- Server entries can now come from the separate `herdr-server-aware` command/JSON integration.
+- Removed built-in SSH/server-terminal handling from Picker; `Ctrl-S` now hands off to Herdr remote servers.
 - Picker footer uses compact Ctrl-style key hints.
 
 ## [0.2.0] - 2026-06-29

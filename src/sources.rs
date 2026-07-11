@@ -36,6 +36,13 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
             }
         }
     }
+    workspaces_from_json(&ws_json, &cwd_by_ws)
+}
+
+fn workspaces_from_json(
+    ws_json: &Value,
+    cwd_by_ws: &HashMap<String, String>,
+) -> (Vec<Entry>, HashMap<String, Vec<WorkspaceRef>>) {
     let mut entries = Vec::new();
     let mut map = HashMap::new();
     if let Some(workspaces) = ws_json
@@ -52,6 +59,11 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
             let path = PathBuf::from(&cwd);
             let tab_count = w.get("tab_count").and_then(|v| v.as_i64()).unwrap_or(0);
             let pane_count = w.get("pane_count").and_then(|v| v.as_i64()).unwrap_or(0);
+            let agent_status = w
+                .get("agent_status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let focused = w.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
             if let Some(key) = canonical_str(&path) {
                 map.entry(key).or_insert_with(Vec::new).push(WorkspaceRef {
                     id: id.into(),
@@ -62,10 +74,21 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
                     pane_count,
                 });
             }
+            let mut subtitle = format!("{} tabs:{} panes:{}", id, tab_count, pane_count);
+            if agent_status != "unknown" {
+                subtitle = format!("agent:{agent_status} · {subtitle}");
+            }
+            let mut search_terms = vec![id.into(), label.into()];
+            if agent_status != "unknown" {
+                search_terms.push(agent_status.into());
+            }
+            if focused {
+                search_terms.push("focused".into());
+            }
             entries.push(Entry {
                 source: Source::Workspace,
                 title: label.into(),
-                subtitle: format!("{} tabs:{} panes:{}", id, tab_count, pane_count),
+                subtitle,
                 path,
                 workspace_id: Some(id.into()),
                 workspace_label: Some(label.into()),
@@ -73,7 +96,7 @@ pub(crate) fn collect_workspaces() -> (Vec<Entry>, HashMap<String, Vec<Workspace
                 project: None,
                 action: EntryAction::FocusWorkspace { id: id.into() },
                 source_label: None,
-                search_terms: vec![id.into(), label.into()],
+                search_terms,
             });
         }
     }
@@ -86,8 +109,6 @@ fn workspace_kind(label: &str) -> WorkspaceKind {
         WorkspaceKind::Project
     } else if label.starts_with("dir:") {
         WorkspaceKind::Dir
-    } else if label.starts_with("server:") {
-        WorkspaceKind::Server
     } else {
         WorkspaceKind::Unknown
     }
@@ -97,17 +118,25 @@ pub(crate) fn collect_agents(
     workspaces: &[Entry],
     aliases: &[crate::config::AgentAliasConfig],
 ) -> Vec<Entry> {
+    let agent_json = herdr_json(["agent", "list"]).unwrap_or(Value::Null);
+    agents_from_json(&agent_json, workspaces, aliases)
+}
+
+fn agents_from_json(
+    agent_json: &Value,
+    workspaces: &[Entry],
+    aliases: &[crate::config::AgentAliasConfig],
+) -> Vec<Entry> {
     let workspace_labels: HashMap<&str, &str> = workspaces
         .iter()
         .filter_map(|entry| Some((entry.workspace_id.as_deref()?, entry.title.as_str())))
         .collect();
-    let pane_json = herdr_json(["pane", "list"]).unwrap_or(Value::Null);
     let mut entries = Vec::new();
-    if let Some(panes) = pane_json
-        .pointer("/result/panes")
+    if let Some(agents) = agent_json
+        .pointer("/result/agents")
         .and_then(|v| v.as_array())
     {
-        for p in panes {
+        for p in agents {
             let Some(agent) = p.get("agent").and_then(|v| v.as_str()) else {
                 continue;
             };
@@ -152,6 +181,9 @@ pub(crate) fn collect_agents(
                 basename(&PathBuf::from(foreground_cwd)),
                 foreground_cwd.into(),
             ];
+            if let Some(session) = p.pointer("/agent_session/value").and_then(|v| v.as_str()) {
+                search_terms.push(session.into());
+            }
             search_terms.extend(alias_terms);
             entries.push(Entry {
                 source: Source::Agent,
@@ -258,6 +290,30 @@ fn walk_dirs(path: &Path, depth: usize, out: &mut Vec<Entry>) {
 mod tests {
     use super::*;
 
+    // ponytail: fixtures captured verbatim from `herdr workspace list` / `herdr agent list` on 0.7.3
+    #[test]
+    fn parses_herdr_workspace_and_agent_list_json() {
+        let ws_json = serde_json::json!({"id":"cli:workspace:list","result":{"type":"workspace_list","workspaces":[
+            {"active_tab_id":"w41:t1","agent_status":"unknown","focused":false,"label":"~","number":1,"pane_count":1,"tab_count":1,"workspace_id":"w41"},
+            {"active_tab_id":"w43:t1","agent_status":"working","focused":true,"label":"dir: picker","number":3,"pane_count":1,"tab_count":1,"workspace_id":"w43"}]}});
+        let (entries, _) = workspaces_from_json(&ws_json, &HashMap::new());
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].subtitle, "w41 tabs:1 panes:1");
+        assert_eq!(entries[1].subtitle, "agent:working · w43 tabs:1 panes:1");
+        assert!(entries[1].search_terms.contains(&"working".to_string()));
+        assert!(entries[1].search_terms.contains(&"focused".to_string()));
+
+        let agent_json = serde_json::json!({"id":"cli:agent:list","result":{"type":"agent_list","agents":[
+            {"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"58f4-session"},
+             "agent_status":"working","cwd":"/tmp","focused":true,"foreground_cwd":"/tmp","pane_id":"w43:p1",
+             "revision":0,"tab_id":"w43:t1","terminal_id":"term_1","workspace_id":"w43"}]}});
+        let agents = agents_from_json(&agent_json, &entries, &[]);
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0].agent_target.as_deref(), Some("term_1"));
+        assert!(agents[0].search_terms.contains(&"58f4-session".to_string()));
+        assert!(agents[0].subtitle.starts_with("working"));
+    }
+
     #[test]
     fn agent_status_icons_are_plain_unicode() {
         assert_eq!(agent_status_icon("working"), "●");
@@ -265,5 +321,4 @@ mod tests {
         assert_eq!(agent_status_icon("blocked"), "!");
         assert_eq!(agent_status_icon("idle"), "○");
     }
-
 }

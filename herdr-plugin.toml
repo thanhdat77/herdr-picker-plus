@@ -1,7 +1,7 @@
 id = "herdr-picker-plus"
 name = "Picker Plus"
 version = "0.2.0"
-min_herdr_version = "0.7.0"
+min_herdr_version = "0.7.3"
 description = "Move anywhere in your Herdr workflow: search workspaces, SSH servers, agents, projects, actions, directories, and plugin integrations from one native picker."
 platforms = ["linux", "macos"]
 
