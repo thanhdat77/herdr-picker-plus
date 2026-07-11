@@ -1,4 +1,4 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 
 use serde::Deserialize;
 
@@ -16,6 +16,8 @@ pub(crate) struct Config {
     pub(crate) theme: ThemeConfig,
     #[serde(default)]
     pub(crate) roots: Vec<RootConfig>,
+    #[serde(default)]
+    pub(crate) sessions: SessionsConfig,
     #[serde(default)]
     pub(crate) integrations: Vec<IntegrationConfig>,
     #[serde(default)]
@@ -38,6 +40,8 @@ pub(crate) struct PickerConfig {
     pub(crate) agent_sort: String,
     #[serde(default = "yes")]
     pub(crate) preview: bool,
+    #[serde(default)]
+    pub(crate) filter_keys: HashMap<String, String>,
 }
 #[derive(Clone, Deserialize)]
 pub(crate) struct SourcesConfig {
@@ -52,7 +56,28 @@ pub(crate) struct SourcesConfig {
     #[serde(default = "yes")]
     pub(crate) agents: bool,
     #[serde(default = "yes")]
+    pub(crate) servers: bool,
+    #[serde(default = "yes")]
+    pub(crate) sessions: bool,
+    #[serde(default = "yes")]
     pub(crate) herdr_plus_quick_actions: bool,
+}
+
+#[derive(Clone, Deserialize)]
+pub(crate) struct SessionsConfig {
+    #[serde(default = "yes")]
+    pub(crate) local: bool,
+    #[serde(default)]
+    pub(crate) entries: Vec<SessionEntryConfig>,
+}
+
+#[derive(Clone, Deserialize)]
+pub(crate) struct SessionEntryConfig {
+    pub(crate) name: String,
+    pub(crate) remote: Option<String>,
+    pub(crate) session: Option<String>,
+    #[serde(default)]
+    pub(crate) tags: Vec<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -114,9 +139,9 @@ fn default_engine() -> String {
 fn default_source_order() -> Vec<String> {
     [
         "agent",
+        "server",
         "workspace",
         "project",
-        "server",
         "zoxide",
         "root",
         "quick",
@@ -132,6 +157,39 @@ fn default_source_priority_boost() -> i64 {
 fn default_agent_sort() -> String {
     "herdr".into()
 }
+fn default_filter_key(source: &Source) -> Option<char> {
+    match source {
+        Source::Agent => Some('a'),
+        Source::Server => Some('s'),
+        Source::QuickAction => Some('q'),
+        Source::Workspace => Some('w'),
+        Source::Project => Some('p'),
+        Source::Zoxide => Some('z'),
+        Source::Root => Some('r'),
+        Source::Session => Some('l'),
+        Source::Integration => None,
+    }
+}
+
+fn default_filter_keys() -> Vec<(Source, char)> {
+    Source::all()
+        .into_iter()
+        .filter_map(|source| default_filter_key(&source).map(|key| (source, key)))
+        .collect()
+}
+
+fn parse_filter_key(value: &str) -> Option<char> {
+    let key = value
+        .trim()
+        .to_ascii_lowercase()
+        .replace("ctrl+", "")
+        .replace("ctrl-", "")
+        .replace('^', "")
+        .replace('⌃', "");
+    let mut chars = key.chars();
+    let ch = chars.next()?;
+    (chars.next().is_none() && ch.is_ascii_alphanumeric()).then_some(ch)
+}
 
 impl Default for PickerConfig {
     fn default() -> Self {
@@ -143,11 +201,48 @@ impl Default for PickerConfig {
             source_priority_boost: default_source_priority_boost(),
             agent_sort: default_agent_sort(),
             preview: true,
+            filter_keys: HashMap::new(),
         }
     }
 }
 
 impl PickerConfig {
+    pub(crate) fn filter_source_for_key(&self, key: char) -> Option<Source> {
+        let key = key.to_ascii_lowercase();
+        let custom = self.custom_filter_keys();
+        custom
+            .iter()
+            .find(|(_, custom_key)| *custom_key == key)
+            .map(|(source, _)| source.clone())
+            .or_else(|| {
+                default_filter_keys()
+                    .into_iter()
+                    .find_map(|(source, default_key)| {
+                        (default_key == key && !custom.iter().any(|(s, _)| s == &source))
+                            .then_some(source)
+                    })
+            })
+    }
+
+    pub(crate) fn filter_key_label(&self, source: &Source) -> String {
+        let key = self
+            .custom_filter_keys()
+            .into_iter()
+            .find_map(|(custom_source, key)| (custom_source == *source).then_some(key))
+            .or_else(|| default_filter_key(source))
+            .unwrap_or('?');
+        format!("⌃{}", key.to_ascii_uppercase())
+    }
+
+    fn custom_filter_keys(&self) -> Vec<(Source, char)> {
+        self.filter_keys
+            .iter()
+            .filter_map(|(source, key)| {
+                Some((Source::from_config(source)?, parse_filter_key(key)?))
+            })
+            .collect()
+    }
+
     pub(crate) fn source_rank(&self, source: &Source) -> usize {
         self.source_order
             .iter()
@@ -170,7 +265,17 @@ impl Default for SourcesConfig {
             zoxide: true,
             roots: true,
             agents: true,
+            servers: true,
+            sessions: true,
             herdr_plus_quick_actions: true,
+        }
+    }
+}
+impl Default for SessionsConfig {
+    fn default() -> Self {
+        Self {
+            local: true,
+            entries: vec![],
         }
     }
 }
@@ -187,6 +292,7 @@ impl Default for Config {
             picker: PickerConfig::default(),
             sources: SourcesConfig::default(),
             theme: ThemeConfig::default(),
+            sessions: SessionsConfig::default(),
             integrations: vec![],
             agent_aliases: vec![],
             roots: vec![
@@ -227,12 +333,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_source_order_prioritizes_agents_then_open_workspaces() {
+    fn default_source_order_prioritizes_agents_then_servers_then_workspaces() {
         let picker = PickerConfig::default();
 
         assert_eq!(picker.source_rank(&Source::Agent), 0);
-        assert_eq!(picker.source_rank(&Source::Workspace), 1);
-        assert!(picker.source_bonus(&Source::Agent) > picker.source_bonus(&Source::Workspace));
+        assert_eq!(picker.source_rank(&Source::Server), 1);
+        assert_eq!(picker.source_rank(&Source::Workspace), 2);
+        assert!(picker.source_bonus(&Source::Agent) > picker.source_bonus(&Source::Server));
+        assert!(picker.source_bonus(&Source::Server) > picker.source_bonus(&Source::Workspace));
         assert!(picker.source_bonus(&Source::Workspace) > picker.source_bonus(&Source::Project));
     }
 
@@ -258,6 +366,28 @@ mod tests {
     }
 
     #[test]
+    fn custom_filter_key_overrides_default_source_key() {
+        let config: Config = toml::from_str(
+            r#"
+            [picker.filter_keys]
+            server = "ctrl-g"
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.picker.filter_source_for_key('g'),
+            Some(Source::Server)
+        );
+        assert_eq!(config.picker.filter_source_for_key('s'), None);
+        assert_eq!(
+            config.picker.filter_source_for_key('a'),
+            Some(Source::Agent)
+        );
+        assert_eq!(config.picker.filter_key_label(&Source::Server), "⌃G");
+    }
+
+    #[test]
     fn parses_agent_aliases() {
         let config: Config = toml::from_str(
             r#"
@@ -273,5 +403,34 @@ mod tests {
         assert_eq!(config.agent_aliases.len(), 1);
         assert!(config.agent_aliases[0].matches("claude", "Dotfiles", "/home/fenix/dotfiles"));
         assert!(!config.agent_aliases[0].matches("codex", "Dotfiles", "/home/fenix/dotfiles"));
+    }
+
+    #[test]
+    fn parses_builtin_session_config() {
+        let config: Config = toml::from_str(
+            r#"
+            [sessions]
+            local = false
+
+            [[sessions.entries]]
+            name = "prod"
+            remote = "prod-host"
+            session = "default"
+            tags = ["api"]
+            "#,
+        )
+        .unwrap();
+
+        assert!(config.sources.sessions);
+        assert!(!config.sessions.local);
+        assert_eq!(config.sessions.entries[0].name, "prod");
+        assert_eq!(
+            config.sessions.entries[0].remote.as_deref(),
+            Some("prod-host")
+        );
+        assert_eq!(
+            config.sessions.entries[0].session.as_deref(),
+            Some("default")
+        );
     }
 }

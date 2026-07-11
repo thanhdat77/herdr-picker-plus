@@ -18,8 +18,8 @@ create_missing = true
 engine = "nucleo"
 
 # Source priority controls initial ordering and tie/near-tie ranking.
-# Accepted names: agent, workspace/open, project, server, zoxide, root, quick, plugin.
-source_order = ["agent", "workspace", "project", "server", "zoxide", "root", "quick", "plugin"]
+# Accepted names: agent, server/remote, workspace/open, project, session, zoxide, root, quick, plugin.
+source_order = ["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
 
 # How strongly source_order influences search ranking.
 # Set 0 for pure matcher score.
@@ -33,6 +33,12 @@ agent_sort = "herdr"
 
 # Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
 preview = true
+
+# Optional: override source filter shortcuts. Values accept "ctrl-x", "ctrl+x", "^x", or "x".
+# Defaults: server=ctrl-s, agent=ctrl-a, quick=ctrl-q, workspace=ctrl-w, project=ctrl-p,
+# zoxide=ctrl-z, root=ctrl-r, session=ctrl-l.
+# [picker.filter_keys]
+# server = "ctrl-g"
 
 [sources]
 # Existing Herdr workspaces. Selecting focuses the workspace.
@@ -51,8 +57,10 @@ roots = true
 # Agent panes from Herdr pane metadata. Selecting focuses the agent.
 agents = true
 
-# Server entries are provided by the optional herdr-server-aware integration below.
-servers = false
+# Remote Herdr targets from remote entries in [sessions] below.
+servers = true
+# Local Herdr sessions from `herdr session list --json` and local [sessions] entries below.
+sessions = true
 
 # Herdr Plus Quick Actions. Selecting opens the Quick Actions picker.
 herdr_plus_quick_actions = true
@@ -80,6 +88,16 @@ max_depth = 3
 # workspace = "Dotfiles"
 # path = "dotfiles"
 
+[sessions]
+# Include local named sessions from `herdr session list --json`.
+local = true
+
+# Manual remote targets. Selecting runs: herdr --remote <remote> --handoff.
+# [[sessions.entries]]
+# name = "prod"
+# remote = "prod-api"
+# tags = ["prod", "api"]
+
 # Optional command/JSON integrations. A plugin only needs:
 # - collect: command that prints JSON array
 # - open: command to run when the item is selected
@@ -93,12 +111,3 @@ max_depth = 3
 # notify_success = true
 # notify_error = true
 #
-# Optional: servers from the separate herdr-server-aware plugin.
-# [[integrations]]
-# id = "server-aware"
-# label = "server"
-# enabled = true
-# collect = "herdr-server-aware list"
-# open = "herdr-server-aware open {{id}}"
-# notify_success = false
-# notify_error = true

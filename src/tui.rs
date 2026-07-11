@@ -22,8 +22,6 @@ use crate::{
 };
 
 // Key icons: plain Unicode only, no Nerd Font dependency.
-const KEY_CTRL_S: &str = "⌃S";
-const KEY_CTRL_A: &str = "⌃A";
 const KEY_CTRL_X: &str = "⌃X";
 const KEY_CTRL_O: &str = "⌃O";
 const KEY_ENTER: &str = "↵";
@@ -84,20 +82,19 @@ enum Action {
 fn handle_key(app: &mut App, key: KeyEvent) -> Action {
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         match key.code {
-            KeyCode::Char('a') => app.set_filter(Some(Source::Agent)),
-            KeyCode::Char('q') => app.set_filter(Some(Source::QuickAction)),
-            KeyCode::Char('w') => app.set_filter(Some(Source::Workspace)),
-            KeyCode::Char('p') => app.set_filter(Some(Source::Project)),
-            KeyCode::Char('z') => app.set_filter(Some(Source::Zoxide)),
-            KeyCode::Char('r') => app.set_filter(Some(Source::Root)),
-            KeyCode::Char('s') => app.set_filter(Some(Source::Server)),
-            KeyCode::Char('o') => app.preview = !app.preview,
-            KeyCode::Char('u') => {
-                app.query.clear();
-                app.set_filter(None);
-            }
-            KeyCode::Char('x') => return Action::CloseWorkspace,
             KeyCode::Char('c') => return Action::Quit,
+            KeyCode::Char(c) => {
+                if let Some(source) = app.config.picker.filter_source_for_key(c) {
+                    app.set_filter(Some(source));
+                } else if c == 'u' {
+                    app.query.clear();
+                    app.set_filter(None);
+                } else if c == 'x' {
+                    return Action::CloseWorkspace;
+                } else if c == 'o' {
+                    app.preview = !app.preview;
+                }
+            }
             _ => {}
         }
         app.apply_filter();
@@ -197,7 +194,9 @@ fn draw(f: &mut Frame, app: &App) {
     }
 
     let help = format!(
-        "{KEY_CTRL_S} servers  {KEY_CTRL_A} agents  {KEY_CTRL_X} close  {KEY_CTRL_O} preview  {KEY_ENTER} open  Esc quit"
+        "{} servers  {} agents  {KEY_CTRL_X} close  {KEY_CTRL_O} preview  {KEY_ENTER} open  Esc quit",
+        app.config.picker.filter_key_label(&Source::Server),
+        app.config.picker.filter_key_label(&Source::Agent),
     );
     f.render_widget(
         Paragraph::new(help).style(
@@ -344,8 +343,10 @@ fn preview_text(app: &App, e: &Entry) -> String {
     let action: &str = match &e.action {
         EntryAction::FocusWorkspace { .. } => "focus existing workspace",
         EntryAction::FocusAgent { .. } => "focus agent pane",
+        EntryAction::OpenRemote { .. } => "open remote Herdr",
+        EntryAction::AttachSession { .. } => "attach Herdr session",
         EntryAction::InvokePluginAction { .. } => "invoke Herdr plugin action",
-        EntryAction::RunCommand { .. } if e.source == Source::Server => "open server via plugin",
+        EntryAction::RunCommand { .. } if e.source == Source::Session => "open session via plugin",
         EntryAction::RunCommand { .. } => "run integration command",
         EntryAction::OpenProject if app.matching_project_workspace(e).is_some() => {
             "focus matching project workspace"
@@ -372,6 +373,7 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Root => theme.teal,
         Source::Agent => theme.yellow,
         Source::Server => theme.green,
+        Source::Session => theme.green,
         Source::QuickAction => theme.peach,
         Source::Integration => theme.red,
     }

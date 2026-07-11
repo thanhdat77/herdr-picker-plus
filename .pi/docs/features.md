@@ -11,7 +11,7 @@ Do not split into many specialized pickers unless the UX clearly needs it. The p
 Default source order:
 
 ```toml
-["workspace", "project", "server", "zoxide", "root", "agent", "quick", "plugin"]
+["agent", "server", "workspace", "project", "session", "zoxide", "root", "quick", "plugin"]
 ```
 
 Source priority is intentional: existing/open things first, creation sources later, quick actions available but not dominant.
@@ -24,16 +24,18 @@ Source priority is intentional: existing/open things first, creation sources lat
 - `Ctrl-Q`: Herdr Plus Quick Actions
 - `Ctrl-Z`: zoxide
 - `Ctrl-R`: roots
-- `Ctrl-S`: servers
+- `Ctrl-S`: servers/remotes
 - `Ctrl-A`: agents
 - `Ctrl-O`: preview
 - `Ctrl-U`: clear query/filter
 
 Keep keybindings mnemonic and few.
 
-## Server access
+## Remote handoff + local sessions
 
-Server source reads `~/.ssh/config` plus optional `[[servers.entries]]`. `Ctrl-S` filters servers only. Selecting creates/focuses a local `server: NAME` workspace, renames the first tab to `remote`, then runs `ssh TARGET` in that pane. For SSH config hosts, `TARGET` is the Host alias.
+Picker Plus owns remote handoff, not SSH terminal wrapping. `Ctrl-S` filters Herdr remote targets. Manual remote rows come from `[sessions.entries]` and run `herdr --remote TARGET --handoff`.
+
+Local rows come from `herdr session list --json` and run `herdr session attach NAME`. Do not bring back `.herdr-server.toml`, SSH config parsing, or terminal attach listing unless the user explicitly asks for terminal-level search again.
 
 ## Herdr Plus
 

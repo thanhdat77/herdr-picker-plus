@@ -38,9 +38,9 @@ Local mapping + custom override is the accepted solution for now.
 
 This project should stay a compact plugin. Avoid speculative abstractions, plugin SDK wrappers, or multi-file refactors unless code size starts blocking safe changes.
 
-## Server access uses Herdr remote directly
+## Server access uses remote handoff
 
-Use `~/.ssh/config` plus optional manual `[[servers.entries]]`; no inventory database, no network scan, no health checks. `Ctrl-S` is the only server-specific filter. Selecting a server creates/focuses a local `server: NAME` workspace, then runs `ssh TARGET` in its first tab. Do not use `herdr --remote` here; it nests Herdr inside Herdr and requires experimental nested mode.
+Treat a remote server as a Herdr remote target, not a remote session. `Ctrl-S` filters servers; remote rows run `herdr --remote TARGET --handoff` to avoid nested Herdr. Local session rows stay local and run `herdr session attach NAME`. Picker should not own SSH config parsing, `.herdr-server.toml`, autossh tabs, or remote terminal attach listing unless terminal-level search becomes an explicit UX goal.
 
 ## Integration contract v1
 

@@ -7,7 +7,7 @@ use std::{
 use crate::{
     config::Config,
     herdr::{herdr_json, notify_done, notify_error, run_herdr},
-    integrations::{command, herdr_plus},
+    integrations::{command, herdr_plus, sessions},
     matcher::match_score,
     model::{Entry, EntryAction, Source, WorkspaceKind, WorkspaceRef},
     paths::{canonical_str, herdr_plus_quick_actions_dir, home},
@@ -63,6 +63,20 @@ impl App {
         if self.config.sources.roots {
             push_unique(&mut entries, &mut seen, collect_roots(&self.config));
         }
+        if self.config.sources.servers {
+            push_unique(
+                &mut entries,
+                &mut seen,
+                sessions::collect_remotes(&self.config),
+            );
+        }
+        if self.config.sources.sessions {
+            push_unique(
+                &mut entries,
+                &mut seen,
+                sessions::collect_sessions(&self.config),
+            );
+        }
         if self.config.sources.agents {
             entries.extend(collect_agents(
                 &workspace_entries,
@@ -85,7 +99,8 @@ impl App {
     pub(crate) fn apply_filter(&mut self) {
         let query = Query::parse(&self.query);
         let empty_query = query.plain.is_empty();
-        let agent_view = query.all_agents || (self.source_filter == Some(Source::Agent) && empty_query);
+        let agent_view =
+            query.all_agents || (self.source_filter == Some(Source::Agent) && empty_query);
         let use_agent_priority = empty_query
             && (agent_view || self.source_filter.is_none())
             && agent_sort(&self.config.picker.agent_sort) == "priority";
@@ -178,6 +193,10 @@ impl App {
                 (run_herdr(["workspace", "focus", id]), true, true)
             }
             EntryAction::OpenProject => (self.open_project(e), true, true),
+            EntryAction::OpenRemote { target } => (sessions::open_remote(target), false, true),
+            EntryAction::AttachSession { name, .. } => {
+                (sessions::attach_session(name), false, true)
+            }
             EntryAction::InvokePluginAction { action } => (
                 run_herdr(["plugin", "action", "invoke", action]),
                 true,
@@ -234,9 +253,8 @@ impl App {
         match e.source {
             Source::Workspace | Source::Agent => e.workspace_id.clone(),
             Source::Project => self.matching_project_workspace(e).map(|ws| ws.id.clone()),
-            Source::Server => self.matching_server_workspace(e).map(|ws| ws.id.clone()),
             Source::Zoxide | Source::Root => self.matching_dir_workspace(e).map(|ws| ws.id.clone()),
-            Source::QuickAction | Source::Integration => None,
+            Source::Server | Source::Session | Source::QuickAction | Source::Integration => None,
         }
     }
 
@@ -305,14 +323,6 @@ impl App {
 
     pub(crate) fn matching_dir_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
         self.matching_dir_workspace_by_key(&e.key())
-    }
-
-    pub(crate) fn matching_server_workspace(&self, e: &Entry) -> Option<&WorkspaceRef> {
-        let label = format!("server: {}", e.title).to_ascii_lowercase();
-        self.path_to_workspaces
-            .values()
-            .flatten()
-            .find(|ws| ws.kind == WorkspaceKind::Server && ws.label.to_ascii_lowercase() == label)
     }
 
     fn matching_dir_workspace_by_key(&self, key: &str) -> Option<&WorkspaceRef> {
@@ -469,9 +479,8 @@ fn launch_workspace_id() -> Option<String> {
 }
 
 fn close_current_workspace_error(id: &str, current: Option<&str>) -> Option<String> {
-    (current == Some(id)).then(|| {
-        "can't close the workspace that owns this picker; switch away first".into()
-    })
+    (current == Some(id))
+        .then(|| "can't close the workspace that owns this picker; switch away first".into())
 }
 
 fn agent_sort(configured: &str) -> String {
@@ -504,6 +513,10 @@ fn push_unique(entries: &mut Vec<Entry>, seen: &mut HashSet<String>, incoming: V
     for e in incoming {
         let key = match &e.action {
             EntryAction::FocusWorkspace { id } => format!("open:{id}"),
+            EntryAction::OpenRemote { target } => format!("remote:{target}"),
+            EntryAction::AttachSession { name, remote } => {
+                format!("session:{}:{name}", remote.as_deref().unwrap_or("local"))
+            }
             EntryAction::RunCommand { command, .. } => format!("{}:{command}", e.source_name()),
             _ => format!("{}:{}", e.source_name(), e.key()),
         };
@@ -610,7 +623,10 @@ mod tests {
     fn default_empty_picker_prioritizes_agent_status() {
         let mut app = App::new(Config::default(), Theme::load(false));
         app.config.picker.agent_sort = "priority".into();
-        app.entries = vec![agent_entry_with_status("idle"), agent_entry_with_status("done")];
+        app.entries = vec![
+            agent_entry_with_status("idle"),
+            agent_entry_with_status("done"),
+        ];
         app.apply_filter();
 
         let first = &app.entries[app.filtered[0]];
@@ -649,7 +665,6 @@ mod tests {
             vec![
                 workspace("w1", "project: tmp", WorkspaceKind::Project, "/tmp"),
                 workspace("w2", "dir: tmp", WorkspaceKind::Dir, "/tmp"),
-                workspace("w3", "server: prod", WorkspaceKind::Server, "/tmp"),
             ],
         );
 
@@ -661,21 +676,9 @@ mod tests {
             tabs: vec![],
         });
         let dir = entry(Source::Root, "/tmp", "tmp");
-        let server = Entry {
-            source: Source::Server,
-            title: "prod".into(),
-            workspace_label: Some("server: prod".into()),
-            action: EntryAction::RunCommand {
-                command: "herdr-server-aware open prod".into(),
-                notify_success: false,
-                notify_error: true,
-            },
-            ..entry(Source::Server, "/tmp", "prod")
-        };
 
         assert_eq!(app.workspace_to_close(&project), Some("w1".into()));
         assert_eq!(app.workspace_to_close(&dir), Some("w2".into()));
-        assert_eq!(app.workspace_to_close(&server), Some("w3".into()));
     }
 
     #[test]
