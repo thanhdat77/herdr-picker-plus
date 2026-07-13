@@ -34,6 +34,12 @@ agent_sort = "herdr"
 # Show the right-side preview pane on open. Ctrl-O toggles it at runtime.
 preview = true
 
+# Vim-style normal mode: j/k move, source keys filter, and / starts searching.
+vim_mode = false
+
+# Start searching immediately after a Vim source-filter key.
+vim_filter_search = false
+
 # Optional: override source filter shortcuts. Values accept "ctrl-x", "ctrl+x", "^x", or "x".
 # Defaults: server=ctrl-s, agent=ctrl-a, quick=ctrl-q, workspace=ctrl-w, project=ctrl-p,
 # zoxide=ctrl-z, root=ctrl-r, session=ctrl-l.

@@ -41,6 +41,10 @@ pub(crate) struct PickerConfig {
     #[serde(default = "yes")]
     pub(crate) preview: bool,
     #[serde(default)]
+    pub(crate) vim_mode: bool,
+    #[serde(default)]
+    pub(crate) vim_filter_search: bool,
+    #[serde(default)]
     pub(crate) filter_keys: HashMap<String, String>,
 }
 #[derive(Clone, Deserialize)]
@@ -185,8 +189,7 @@ fn parse_filter_key(value: &str) -> Option<char> {
         .to_ascii_lowercase()
         .replace("ctrl+", "")
         .replace("ctrl-", "")
-        .replace('^', "")
-        .replace('⌃', "");
+        .replace(['^', '⌃'], "");
     let mut chars = key.chars();
     let ch = chars.next()?;
     (chars.next().is_none() && ch.is_ascii_alphanumeric()).then_some(ch)
@@ -202,12 +205,23 @@ impl Default for PickerConfig {
             source_priority_boost: default_source_priority_boost(),
             agent_sort: default_agent_sort(),
             preview: true,
+            vim_mode: false,
+            vim_filter_search: false,
             filter_keys: HashMap::new(),
         }
     }
 }
 
 impl PickerConfig {
+    pub(crate) fn filter_key(&self, source: &Source) -> Option<char> {
+        let key = self
+            .custom_filter_keys()
+            .into_iter()
+            .find_map(|(custom_source, key)| (custom_source == *source).then_some(key))
+            .or_else(|| default_filter_key(source))?;
+        (self.filter_source_for_key(key).as_ref() == Some(source)).then_some(key)
+    }
+
     pub(crate) fn filter_source_for_key(&self, key: char) -> Option<Source> {
         let key = key.to_ascii_lowercase();
         let custom = self.custom_filter_keys();
@@ -223,16 +237,6 @@ impl PickerConfig {
                             .then_some(source)
                     })
             })
-    }
-
-    pub(crate) fn filter_key_label(&self, source: &Source) -> String {
-        let key = self
-            .custom_filter_keys()
-            .into_iter()
-            .find_map(|(custom_source, key)| (custom_source == *source).then_some(key))
-            .or_else(|| default_filter_key(source))
-            .unwrap_or('?');
-        format!("⌃{}", key.to_ascii_uppercase())
     }
 
     fn custom_filter_keys(&self) -> Vec<(Source, char)> {
@@ -385,7 +389,7 @@ mod tests {
             config.picker.filter_source_for_key('a'),
             Some(Source::Agent)
         );
-        assert_eq!(config.picker.filter_key_label(&Source::Server), "⌃G");
+        assert_eq!(config.picker.filter_key(&Source::Server), Some('g'));
     }
 
     #[test]

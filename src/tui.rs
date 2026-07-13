@@ -1,7 +1,7 @@
 use std::io;
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -9,22 +9,18 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
     Frame, Terminal,
 };
 
 use crate::{
-    app::App,
+    app::{App, InputMode},
+    keymap::{keybindings, Command},
     model::{Entry, EntryAction, Source},
     sources::agent_status_icon,
     theme::Theme,
 };
-
-// Key icons: plain Unicode only, no Nerd Font dependency.
-const KEY_CTRL_X: &str = "⌃X";
-const KEY_CTRL_O: &str = "⌃O";
-const KEY_ENTER: &str = "↵";
 
 pub(crate) fn tui_loop(app: &mut App, persist: bool) -> io::Result<()> {
     enable_raw_mode()?;
@@ -88,53 +84,99 @@ enum Action {
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Action {
-    if key.modifiers.contains(KeyModifiers::CONTROL) {
-        match key.code {
-            KeyCode::Char('c') => return Action::Quit,
-            KeyCode::Char(c) => {
-                if let Some(source) = app.config.picker.filter_source_for_key(c) {
-                    app.set_filter(Some(source));
-                } else if c == 'u' {
-                    app.query.clear();
-                    app.set_filter(None);
-                } else if c == 'x' {
-                    return Action::CloseWorkspace;
-                } else if c == 'o' {
-                    app.preview = !app.preview;
-                }
-            }
-            _ => {}
+    let command = keybindings(app)
+        .into_iter()
+        .find(|binding| binding.matches(app, key))
+        .map(|binding| binding.command);
+
+    if app.input_mode == InputMode::Help {
+        if matches!(command, Some(Command::Back | Command::ToggleHelp)) {
+            app.input_mode = InputMode::Normal;
         }
-        app.apply_filter();
         return Action::Continue;
     }
 
-    match key.code {
-        KeyCode::Esc => Action::Quit,
-        KeyCode::Enter => Action::Open,
-        KeyCode::Up => {
+    if let Some(command) = command {
+        return execute_command(app, command, key);
+    }
+
+    if app.config.picker.vim_mode && app.input_mode == InputMode::Normal {
+        return Action::Continue;
+    }
+
+    if let KeyCode::Char(c) = key.code {
+        app.query.push(c);
+        app.apply_filter();
+    }
+    Action::Continue
+}
+
+fn execute_command(app: &mut App, command: Command, key: KeyEvent) -> Action {
+    match command {
+        Command::Back => {
+            if key.code == KeyCode::Esc && app.input_mode == InputMode::Search {
+                app.input_mode = InputMode::Normal;
+                Action::Continue
+            } else {
+                Action::Quit
+            }
+        }
+        Command::Open => Action::Open,
+        Command::MoveUp => {
             app.prev();
             Action::Continue
         }
-        KeyCode::Down => {
+        Command::MoveDown => {
             app.next();
             Action::Continue
         }
-        KeyCode::Tab => {
+        Command::StartSearch => {
+            app.query.clear();
+            app.apply_filter();
+            app.input_mode = InputMode::Search;
+            Action::Continue
+        }
+        Command::CycleFilter => {
             app.cycle_filter();
             Action::Continue
         }
-        KeyCode::Backspace => {
+        Command::DeleteChar => {
             app.query.pop();
             app.apply_filter();
             Action::Continue
         }
-        KeyCode::Char(c) => {
-            app.query.push(c);
+        Command::Clear => {
+            app.query.clear();
+            app.set_filter(None);
+            app.input_mode = InputMode::Normal;
             app.apply_filter();
             Action::Continue
         }
-        _ => Action::Continue,
+        Command::CloseWorkspace => Action::CloseWorkspace,
+        Command::TogglePreview => {
+            app.preview = !app.preview;
+            Action::Continue
+        }
+        Command::ToggleHelp => {
+            app.input_mode = InputMode::Help;
+            Action::Continue
+        }
+        Command::Filter(source) => {
+            if !key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+            {
+                app.query.clear();
+                app.input_mode = if app.config.picker.vim_filter_search {
+                    InputMode::Search
+                } else {
+                    InputMode::Normal
+                };
+            }
+            app.set_filter(Some(source));
+            app.apply_filter();
+            Action::Continue
+        }
     }
 }
 
@@ -201,73 +243,177 @@ fn draw(f: &mut Frame, app: &App) {
         draw_preview(f, app, body[1]);
     }
 
-    let help = format!(
-        "{} servers  {} agents  {KEY_CTRL_X} close  {KEY_CTRL_O} preview  {KEY_ENTER} open  Esc quit",
-        app.config.picker.filter_key_label(&Source::Server),
-        app.config.picker.filter_key_label(&Source::Agent),
-    );
-    f.render_widget(
-        Paragraph::new(help).style(
+    draw_key_hints(f, app, rows[2]);
+    if app.input_mode == InputMode::Help {
+        draw_keybindings_help(f, app, area);
+    }
+}
+
+fn draw_key_hints(f: &mut Frame, app: &App, area: Rect) {
+    let mut command_spans = Vec::new();
+    let mut filter_spans = Vec::new();
+    for binding in keybindings(app) {
+        let Some((key, label)) = binding.compact_hint(app) else {
+            continue;
+        };
+        if key.is_empty() {
+            continue;
+        }
+        let spans = if binding.group == "Filters" {
+            &mut filter_spans
+        } else {
+            &mut command_spans
+        };
+        let active = binding.is_active(app);
+        let key_style = if active {
             Style::default()
-                .fg(app.theme.overlay0)
-                .bg(app.theme.panel_bg),
-        ),
-        rows[2],
+                .fg(app.theme.panel_bg)
+                .bg(app.theme.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(app.theme.accent)
+                .add_modifier(Modifier::BOLD)
+        };
+        spans.push(Span::styled(format!(" {key} "), key_style));
+        spans.push(Span::styled(
+            format!("{label}  "),
+            Style::default().fg(if active {
+                app.theme.text
+            } else {
+                app.theme.overlay0
+            }),
+        ));
+    }
+    f.render_widget(
+        Paragraph::new(Text::from(vec![
+            Line::from(command_spans),
+            Line::from(filter_spans),
+        ]))
+        .style(Style::default().bg(app.theme.panel_bg)),
+        area,
+    );
+}
+
+fn draw_keybindings_help(f: &mut Frame, app: &App, area: Rect) {
+    let bindings = keybindings(app);
+    let mut lines = Vec::new();
+    for group in ["Navigation", "Actions", "View", "Filters"] {
+        let start = lines.len();
+        lines.push(Line::styled(
+            format!(" {group}"),
+            Style::default()
+                .fg(app.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ));
+        for binding in bindings.iter().filter(|binding| binding.group == group) {
+            let key = binding.key_label(app);
+            if key.is_empty() {
+                continue;
+            }
+            let active = binding.is_active(app);
+            let key_style = if active {
+                Style::default()
+                    .fg(app.theme.panel_bg)
+                    .bg(app.theme.accent)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(app.theme.accent)
+            };
+            lines.push(Line::from(vec![
+                Span::raw("   "),
+                Span::styled(format!("{key:<12}"), key_style),
+                Span::styled(&binding.label, Style::default().fg(app.theme.text)),
+            ]));
+        }
+        if lines.len() == start + 1 {
+            lines.pop();
+        } else {
+            lines.push(Line::default());
+        }
+    }
+    lines.pop();
+
+    let height = (lines.len() as u16 + 2).min(area.height.saturating_sub(2).max(1));
+    let popup = area.centered(Constraint::Percentage(72), Constraint::Length(height));
+    f.render_widget(Clear, popup);
+    f.render_widget(
+        Paragraph::new(Text::from(lines))
+            .style(Style::default().bg(app.theme.panel_bg))
+            .block(
+                Block::default()
+                    .title(" Keybindings ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(app.theme.accent)),
+            ),
+        popup,
     );
 }
 
 fn draw_list(f: &mut Frame, app: &App, area: Rect) {
     let show_scores = !app.query.trim().is_empty();
     let row_width = area.width.saturating_sub(3) as usize;
-    let items: Vec<ListItem> = app
-        .filtered
-        .iter()
-        .enumerate()
-        .map(|(row, idx)| {
-            let e = &app.entries[*idx];
-            let color = source_color(&app.theme, &e.source);
-            let source_label = if e.source == Source::Agent {
-                format!("agent {}", agent_status_icon(&e.subtitle))
-            } else {
-                e.source_name().to_string()
-            };
-            let source = format!("[{:<7}] ", truncate(&source_label, 7));
-            let subtitle = if e.subtitle.is_empty() {
-                String::new()
-            } else {
-                format!("  {}", e.subtitle)
-            };
-            let score = show_scores
-                .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
-                .flatten();
-            let left_len =
-                source.chars().count() + e.title.chars().count() + subtitle.chars().count();
-            let spacer = score
-                .as_ref()
-                .map(|s| {
-                    " ".repeat(
-                        row_width
-                            .saturating_sub(left_len + s.chars().count())
-                            .max(2),
-                    )
-                })
-                .unwrap_or_default();
-            let mut spans = vec![
-                Span::styled(source, Style::default().fg(color)),
-                Span::styled(&e.title, Style::default().fg(app.theme.text)),
-                Span::styled(subtitle, Style::default().fg(app.theme.subtext0)),
-            ];
-            if let Some(score) = score {
-                spans.push(Span::raw(spacer));
-                spans.push(Span::styled(score, Style::default().fg(app.theme.overlay0)));
-            }
-            ListItem::new(Line::from(spans))
-        })
-        .collect();
-    let mut state = ListState::default();
-    if !app.filtered.is_empty() {
-        state.select(Some(app.selected));
+    let mut items = Vec::new();
+    let mut selected_row = None;
+    for (row, idx) in app.filtered.iter().enumerate() {
+        let e = &app.entries[*idx];
+        let color = source_color(&app.theme, &e.source);
+        let group_start =
+            row == 0 || app.entries[app.filtered[row - 1]].source_name() != e.source_name();
+        let group_end = row + 1 == app.filtered.len()
+            || app.entries[app.filtered[row + 1]].source_name() != e.source_name();
+        if group_start {
+            items.push(ListItem::new(Line::from(Span::styled(
+                format!(" {} ", e.source_name()),
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            ))));
+        }
+
+        if row == app.selected {
+            selected_row = Some(items.len());
+        }
+        let branch = if group_end { "  └─ " } else { "  ├─ " };
+        let status = if e.source == Source::Agent {
+            format!("{} ", agent_status_icon(&e.subtitle))
+        } else {
+            String::new()
+        };
+        let subtitle = if e.subtitle.is_empty() {
+            String::new()
+        } else {
+            format!("  {}", e.subtitle)
+        };
+        let score = show_scores
+            .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
+            .flatten();
+        let left_len = branch.chars().count()
+            + status.chars().count()
+            + e.title.chars().count()
+            + subtitle.chars().count();
+        let spacer = score
+            .as_ref()
+            .map(|s| {
+                " ".repeat(
+                    row_width
+                        .saturating_sub(left_len + s.chars().count())
+                        .max(2),
+                )
+            })
+            .unwrap_or_default();
+        let mut spans = vec![
+            Span::styled(branch, Style::default().fg(app.theme.overlay0)),
+            Span::styled(status, Style::default().fg(color)),
+            Span::styled(&e.title, Style::default().fg(app.theme.text)),
+            Span::styled(subtitle, Style::default().fg(app.theme.subtext0)),
+        ];
+        if let Some(score) = score {
+            spans.push(Span::raw(spacer));
+            spans.push(Span::styled(score, Style::default().fg(app.theme.overlay0)));
+        }
+        items.push(ListItem::new(Line::from(spans)));
     }
+    let mut state = ListState::default();
+    state.select(selected_row);
     let list = List::new(items)
         .block(Block::default().title(" Results ").borders(Borders::RIGHT))
         .highlight_style(
@@ -369,10 +515,6 @@ fn preview_text(app: &App, e: &Entry) -> String {
     lines.join("\n")
 }
 
-fn truncate(value: &str, max: usize) -> String {
-    value.chars().take(max).collect()
-}
-
 fn source_color(theme: &Theme, source: &Source) -> Color {
     match source {
         Source::Workspace => theme.green,
@@ -384,5 +526,169 @@ fn source_color(theme: &Theme, source: &Source) -> Color {
         Source::Session => theme.green,
         Source::QuickAction => theme.peach,
         Source::Integration => theme.red,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crossterm::event::KeyModifiers;
+    use ratatui::backend::TestBackend;
+
+    use super::*;
+    use crate::{config::Config, theme::Theme};
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn entry(source: Source, title: &str) -> Entry {
+        Entry {
+            source,
+            title: title.into(),
+            subtitle: String::new(),
+            path: PathBuf::from(title),
+            workspace_id: None,
+            workspace_label: None,
+            agent_target: None,
+            project: None,
+            action: EntryAction::FocusOrCreateDir,
+            source_label: None,
+            search_terms: vec![],
+        }
+    }
+
+    fn buffer_text(terminal: &Terminal<TestBackend>) -> String {
+        let buffer = terminal.backend().buffer();
+        (0..buffer.area.height)
+            .map(|y| {
+                (0..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn list_renders_source_groups_as_a_tree() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.entries = vec![
+            entry(Source::Agent, "Claude"),
+            entry(Source::Agent, "Codex"),
+            entry(Source::Root, "Dotfiles"),
+        ];
+        app.filtered = vec![0, 1, 2];
+        app.filtered_scores = vec![0; 3];
+
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        let text = buffer_text(&terminal);
+
+        assert!(text.contains(" agent "));
+        assert!(text.contains(&format!("  ├─ {} Claude", agent_status_icon(""))));
+        assert!(text.contains(&format!("  └─ {} Codex", agent_status_icon(""))));
+        assert!(text.contains(" root "));
+        assert!(text.contains("  └─ Dotfiles"));
+    }
+
+    #[test]
+    fn vim_mode_uses_normal_keys_then_searches_with_slash() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.vim_mode = true;
+        handle_key(&mut app, key(KeyCode::Char('j')));
+        assert!(app.query.is_empty());
+
+        handle_key(&mut app, key(KeyCode::Char('a')));
+        assert_eq!(app.source_filter, Some(Source::Agent));
+
+        handle_key(&mut app, key(KeyCode::Char('/')));
+        assert_eq!(app.input_mode, InputMode::Search);
+        assert_eq!(app.source_filter, Some(Source::Agent));
+
+        handle_key(&mut app, key(KeyCode::Char('j')));
+        assert_eq!(app.query, "j");
+
+        handle_key(&mut app, key(KeyCode::Esc));
+        assert_eq!(app.input_mode, InputMode::Normal);
+    }
+
+    #[test]
+    fn vim_filter_search_starts_search_after_source_key() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.vim_mode = true;
+        app.config.picker.vim_filter_search = true;
+
+        handle_key(&mut app, key(KeyCode::Char('a')));
+        assert_eq!(app.source_filter, Some(Source::Agent));
+        assert_eq!(app.input_mode, InputMode::Search);
+
+        handle_key(&mut app, key(KeyCode::Char('c')));
+        assert_eq!(app.query, "c");
+    }
+
+    #[test]
+    fn question_mark_toggles_registry_help_overlay() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        handle_key(&mut app, key(KeyCode::Char('?')));
+        assert_eq!(app.input_mode, InputMode::Help);
+
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &app)).unwrap();
+        let text = buffer_text(&terminal);
+        assert!(text.contains(" Keybindings "));
+        assert!(text.contains("toggle preview"));
+        assert!(text.contains("agents"));
+        assert!(!text.contains("?/?"));
+
+        handle_key(&mut app, key(KeyCode::Char('?')));
+        assert_eq!(app.input_mode, InputMode::Normal);
+    }
+
+    #[test]
+    fn registry_reports_active_toggle_state() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.preview = true;
+        let preview = keybindings(&app)
+            .into_iter()
+            .find(|binding| binding.command == Command::TogglePreview)
+            .unwrap();
+
+        assert!(preview.is_active(&app));
+    }
+
+    #[test]
+    fn compact_footer_groups_movement_and_lists_filters() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.vim_mode = true;
+        let backend = TestBackend::new(110, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw(f, &app)).unwrap();
+        let text = buffer_text(&terminal);
+
+        assert!(text.contains("j/k up/down"));
+        assert!(text.contains("a agent"));
+        assert!(text.contains("z zoxide"));
+        assert!(!text.contains("k move up"));
+    }
+
+    #[test]
+    fn input_modes_transition_exclusively() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        app.config.picker.vim_mode = true;
+        app.config.picker.vim_filter_search = true;
+        assert_eq!(app.input_mode, InputMode::Normal);
+
+        handle_key(&mut app, key(KeyCode::Char('a')));
+        assert_eq!(app.input_mode, InputMode::Search);
+
+        handle_key(&mut app, key(KeyCode::Char('?')));
+        assert_eq!(app.input_mode, InputMode::Help);
+
+        handle_key(&mut app, key(KeyCode::Esc));
+        assert_eq!(app.input_mode, InputMode::Normal);
     }
 }

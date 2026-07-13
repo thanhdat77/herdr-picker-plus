@@ -7,6 +7,7 @@ mod app;
 mod config;
 mod herdr;
 mod integrations;
+mod keymap;
 mod matcher;
 mod model;
 mod paths;

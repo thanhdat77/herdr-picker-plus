@@ -15,6 +15,13 @@ use crate::{
     theme::Theme,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum InputMode {
+    Normal,
+    Search,
+    Help,
+}
+
 pub(crate) struct App {
     pub(crate) config: Config,
     pub(crate) theme: Theme,
@@ -23,6 +30,7 @@ pub(crate) struct App {
     pub(crate) filtered_scores: Vec<i64>,
     pub(crate) selected: usize,
     pub(crate) query: String,
+    pub(crate) input_mode: InputMode,
     pub(crate) source_filter: Option<Source>,
     pub(crate) preview: bool,
     pub(crate) path_to_workspaces: HashMap<String, Vec<WorkspaceRef>>,
@@ -39,6 +47,7 @@ impl App {
             filtered_scores: vec![],
             selected: 0,
             query: String::new(),
+            input_mode: InputMode::Normal,
             source_filter: None,
             preview,
             path_to_workspaces: HashMap::new(),

@@ -188,6 +188,9 @@ description = "picker side pane"
 | `/text` | match cwd/path, for example `/chatbot` |
 | `Ctrl-O` | toggle preview |
 | `Ctrl-U` | clear query and filter |
+| `?` | show all active keybindings |
+
+Set `vim_mode = true` under `[picker]` for a normal mode where `j`/`k` move, source shortcut keys select a filter, and `/` starts searching within that filter. Add `vim_filter_search = true` to enter search immediately after a source key. `Esc` leaves search mode; press it again to close.
 
 ## Configuration
 
@@ -210,6 +213,8 @@ source_order = ["agent", "workspace", "project", "session", "zoxide", "root", "s
 source_priority_boost = 5
 agent_sort = "herdr" # herdr | priority | spaces
 preview = true
+vim_mode = false
+vim_filter_search = false
 
 # Optional shortcut overrides. Values accept "ctrl-x", "ctrl+x", "^x", or "x".
 # [picker.filter_keys]

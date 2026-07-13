@@ -31,7 +31,8 @@ The plugin is intentionally a terminal TUI running inside a Herdr-managed overla
 ```text
 src/main.rs      CLI entrypoints
 src/app.rs       picker state, filtering, open dispatch
-src/tui.rs       terminal UI and key handling
+src/tui.rs       terminal UI and command execution
+src/keymap.rs    shared key registry, labels, groups, and active states
 src/config.rs    plugin config loading and defaults
 src/model.rs     shared Source/Entry/Project models
 src/sources.rs   workspace/project/zoxide/root/agent/quick collectors
@@ -42,6 +43,8 @@ src/paths.rs     path/config helpers
 ```
 
 Keep new integrations in `sources.rs` unless they grow enough to deserve their own module. Keep Herdr CLI calls behind `herdr.rs` where practical.
+
+Picker input is an exclusive `InputMode` state machine (`Normal`, `Search`, `Help`); key scopes, footer hints, and transitions are defined through `keymap.rs`.
 
 ## Sources
 
