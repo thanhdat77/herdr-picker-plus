@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-15
+
 ### Added
 - Notification audio modes: Herdr defaults, silent notifications, or an asynchronous custom audio file.
 - A new full-width Navigator demo replaces the cropped preview.
