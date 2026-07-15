@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/thanhdat77/herdr-picker-plus/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://github.com/thanhdat77/herdr-navigator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/thanhdat77/herdr-navigator/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-2ea44f" /></a>
   <img alt="Herdr 0.7.3+" src="https://img.shields.io/badge/Herdr-0.7.3%2B-66b3ff" />
   <img alt="Linux and macOS" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-c084fc" />
@@ -27,11 +27,11 @@ prefix+t  →  type  →  Enter
 ## Install
 
 ```bash
-herdr plugin install thanhdat77/herdr-picker-plus --yes
+herdr plugin install thanhdat77/herdr-navigator --yes
 herdr plugin action invoke herdr-picker-plus.open
 ```
 
-If the overlay opens, add a shortcut to `~/.config/herdr/config.toml`:
+If the overlay opens, add a shortcut to `~/.config/herdr/config.toml`. Invoking `open` again focuses the existing Navigator in the current workspace instead of opening a duplicate:
 
 ```toml
 [[keys.command]]
@@ -246,8 +246,8 @@ Navigator shell-quotes `{{id}}`, `{{title}}`, `{{subtitle}}`, `{{path}}`, and `{
 Build and link locally:
 
 ```bash
-git clone https://github.com/thanhdat77/herdr-picker-plus.git
-cd herdr-picker-plus
+git clone https://github.com/thanhdat77/herdr-navigator.git
+cd herdr-navigator
 cargo build --release
 herdr plugin link "$PWD"
 ```

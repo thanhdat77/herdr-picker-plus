@@ -8,7 +8,7 @@ Do not split into many specialized pickers unless the UX clearly needs it. The p
 
 ## Open modes
 
-- `open`: overlay pane, closes after `Enter` (the default, quick-jump flow).
+- `open`: overlay pane, closes after `Enter` (the default, quick-jump flow); re-invoking focuses the existing overlay in the current workspace instead of opening a duplicate.
 - `open-side`: persistent right split (`picker-side` pane entry), mirroring herdr-file-viewer UX — launch-or-focus, toggle closed when already focused, stays open after `Enter`. The toggle decision lives in `side_pane_decision()` in `src/main.rs` and matches panes by the `Navigator Side` title.
 
 ## Sources

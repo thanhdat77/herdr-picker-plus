@@ -35,13 +35,15 @@ fn main() {
     }
 }
 
-fn open_picker() -> ! {
-    open_plugin_pane("picker", &["--focus"])
-}
-
-// Must match the `title` of the `picker-side` [[panes]] entry in herdr-plugin.toml;
-// it is how the toggle finds an already-open side pane in `herdr pane list`.
+// Must match the pane `title` values in herdr-plugin.toml; Herdr exposes them
+// as labels in `pane list`.
+const PICKER_PANE_LABEL: &str = "Herdr Navigator";
 const SIDE_PANE_LABEL: &str = "Navigator Side";
+
+enum PickerDecision {
+    Open,
+    Focus(String),
+}
 
 enum SideDecision {
     Open,
@@ -49,37 +51,49 @@ enum SideDecision {
     Close(String),
 }
 
+fn pane_in_focused_workspace<'a>(
+    pane_json: &'a serde_json::Value,
+    label: &str,
+) -> Option<(&'a serde_json::Value, &'a serde_json::Value)> {
+    let panes = pane_json
+        .pointer("/result/panes")
+        .and_then(|v| v.as_array())?;
+    let focused = panes
+        .iter()
+        .find(|p| p.get("focused").and_then(|v| v.as_bool()) == Some(true))?;
+    let workspace = focused.get("workspace_id").and_then(|v| v.as_str())?;
+    let target = panes.iter().find(|p| {
+        p.get("label").and_then(|v| v.as_str()) == Some(label)
+            && p.get("workspace_id").and_then(|v| v.as_str()) == Some(workspace)
+    })?;
+    Some((focused, target))
+}
+
+fn picker_pane_decision(pane_json: &serde_json::Value) -> PickerDecision {
+    pane_in_focused_workspace(pane_json, PICKER_PANE_LABEL)
+        .and_then(|(_, picker)| picker.get("pane_id")?.as_str())
+        .map(|id| PickerDecision::Focus(id.into()))
+        .unwrap_or(PickerDecision::Open)
+}
+
+fn open_picker() -> ! {
+    let json = herdr::herdr_json(["pane", "list"]).unwrap_or(serde_json::Value::Null);
+    match picker_pane_decision(&json) {
+        PickerDecision::Open => open_plugin_pane("picker", &["--focus"]),
+        PickerDecision::Focus(id) => run_plugin_pane_cmd("focus", &id),
+    }
+}
+
 // Launch-or-focus, toggle on repeat — same UX as herdr-file-viewer's side pane,
 // scoped to the focused workspace. Any parse failure degrades to Open.
 fn side_pane_decision(pane_json: &serde_json::Value) -> SideDecision {
-    let Some(panes) = pane_json
-        .pointer("/result/panes")
-        .and_then(|v| v.as_array())
-    else {
-        return SideDecision::Open;
-    };
-    let focused = panes
-        .iter()
-        .find(|p| p.get("focused").and_then(|v| v.as_bool()) == Some(true));
-    let workspace = focused
-        .and_then(|p| p.get("workspace_id"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let side = panes.iter().find(|p| {
-        p.get("label").and_then(|v| v.as_str()) == Some(SIDE_PANE_LABEL)
-            && p.get("workspace_id").and_then(|v| v.as_str()) == Some(workspace)
-    });
-    let Some(side) = side else {
+    let Some((focused, side)) = pane_in_focused_workspace(pane_json, SIDE_PANE_LABEL) else {
         return SideDecision::Open;
     };
     let Some(id) = side.get("pane_id").and_then(|v| v.as_str()) else {
         return SideDecision::Open;
     };
-    if focused
-        .and_then(|p| p.get("pane_id"))
-        .and_then(|v| v.as_str())
-        == Some(id)
-    {
+    if focused.get("pane_id").and_then(|v| v.as_str()) == Some(id) {
         SideDecision::Close(id.into())
     } else {
         SideDecision::Focus(id.into())
@@ -170,6 +184,32 @@ mod tests {
 
     fn pane_list(panes: Vec<serde_json::Value>) -> serde_json::Value {
         serde_json::json!({"id": "cli:pane:list", "result": {"type": "pane_list", "panes": panes}})
+    }
+
+    #[test]
+    fn overlay_picker_opens_once_then_focuses_existing() {
+        let no_picker = pane_list(vec![pane("w1:p1", "w1", None, true)]);
+        assert!(matches!(
+            picker_pane_decision(&no_picker),
+            PickerDecision::Open
+        ));
+
+        let existing_picker = pane_list(vec![
+            pane("w1:p1", "w1", None, true),
+            pane("w1:p2", "w1", Some(PICKER_PANE_LABEL), false),
+        ]);
+        assert!(
+            matches!(picker_pane_decision(&existing_picker), PickerDecision::Focus(id) if id == "w1:p2")
+        );
+
+        let other_workspace = pane_list(vec![
+            pane("w1:p1", "w1", None, true),
+            pane("w2:p2", "w2", Some(PICKER_PANE_LABEL), false),
+        ]);
+        assert!(matches!(
+            picker_pane_decision(&other_workspace),
+            PickerDecision::Open
+        ));
     }
 
     #[test]

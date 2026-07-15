@@ -82,5 +82,5 @@ No benchmarks, testimonials, adoption claims, or quantified time savings are cur
 ## Goals
 
 **Primary goal:** Increase qualified Herdr-user installs from the GitHub README.
-**Primary conversion action:** Run `herdr plugin install thanhdat77/herdr-picker-plus --yes`.
+**Primary conversion action:** Run `herdr plugin install thanhdat77/herdr-navigator --yes`.
 **Secondary actions:** Star the repository, configure `prefix+t`, and contribute integrations.
