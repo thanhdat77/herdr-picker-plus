@@ -23,7 +23,7 @@ use crate::{
     keymap::{keybindings, Command},
     model::{Entry, EntryAction, Source},
     paths::home,
-    sources::agent_status_icon_at,
+    sources::status_icon_at,
     theme::Theme,
 };
 
@@ -410,9 +410,9 @@ fn agent_status_color(theme: &Theme, status: &str) -> Color {
     } else if status.contains("work") || status.contains("run") {
         theme.yellow
     } else if status.contains("done") || status.contains("complete") {
-        theme.green
-    } else if status.contains("idle") {
         theme.teal
+    } else if status.contains("idle") {
+        theme.green
     } else {
         theme.overlay0
     }
@@ -524,6 +524,26 @@ fn truncate_end(value: &str, max_chars: usize) -> String {
         .collect()
 }
 
+fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Color) {
+    let is_workspace = entry.source == Source::Workspace;
+    let is_current = is_workspace && entry.search_terms.iter().any(|term| term == "focused");
+    let is_pinned = is_workspace
+        && app.config.jump_back.pin_previous
+        && app.query.trim().is_empty()
+        && app.source_filter.is_none()
+        && entry.workspace_id.is_some()
+        && entry.workspace_id == app.previous_workspace_id;
+    if is_current {
+        ("  ◆  ", app.theme.accent)
+    } else if is_pinned {
+        ("  ◆  ", app.theme.red)
+    } else if group_end {
+        ("  └─ ", app.theme.overlay0)
+    } else {
+        ("  ├─ ", app.theme.overlay0)
+    }
+}
+
 fn draw_list(f: &mut Frame, app: &App, area: Rect) {
     let show_scores = !app.query.trim().is_empty();
     let row_width = area.width.saturating_sub(3) as usize;
@@ -546,7 +566,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         if row == app.selected {
             selected_row = Some(items.len());
         }
-        let branch = if group_end { "  └─ " } else { "  ├─ " };
+        let (branch, branch_color) = entry_branch(app, e, group_end);
         let score = show_scores
             .then(|| app.filtered_scores.get(row).map(|s| format!("score {s}")))
             .flatten();
@@ -554,16 +574,9 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         if app.config.picker.detailed_rows {
             let status = entry_status(e);
             let icon = status
-                .map(|status| format!("{} ", agent_status_icon_at(status, app.spinner_tick)))
+                .map(|status| format!("{} ", status_icon_at(&e.source, status, app.spinner_tick)))
                 .unwrap_or_default();
             let status_label = status.filter(|status| *status != "unknown");
-            let current = if e.source == Source::Workspace
-                && e.search_terms.iter().any(|term| term == "focused")
-            {
-                "◆ "
-            } else {
-                ""
-            };
             let raw_path = e.path.display().to_string();
             let raw_metadata = entry_metadata(e);
             let meta_width = metadata_width(area.width);
@@ -591,8 +604,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                     .map(str::chars)
                     .map(Iterator::count)
                     .unwrap_or(0);
-            let fixed_width =
-                branch.chars().count() + current.chars().count() + icon.chars().count();
+            let fixed_width = branch.chars().count() + icon.chars().count();
             let right_column_width = if right_width > 0 {
                 meta_width.max(right_width)
             } else {
@@ -617,8 +629,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                 .map(|status| agent_status_color(&app.theme, status))
                 .unwrap_or(color);
             let mut title_spans = vec![
-                Span::styled(branch, Style::default().fg(app.theme.overlay0)),
-                Span::styled(current, Style::default().fg(app.theme.accent)),
+                Span::styled(branch, Style::default().fg(branch_color)),
                 Span::styled(icon, Style::default().fg(status_color)),
                 Span::styled(title, Style::default().fg(app.theme.text)),
             ];
@@ -659,7 +670,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         } else {
             let status_text = entry_status(e);
             let status = status_text
-                .map(|status| format!("{} ", agent_status_icon_at(status, app.spinner_tick)))
+                .map(|status| format!("{} ", status_icon_at(&e.source, status, app.spinner_tick)))
                 .unwrap_or_default();
             let subtitle = if e.subtitle.is_empty() {
                 String::new()
@@ -681,7 +692,7 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
                 })
                 .unwrap_or_default();
             let mut spans = vec![
-                Span::styled(branch, Style::default().fg(app.theme.overlay0)),
+                Span::styled(branch, Style::default().fg(branch_color)),
                 Span::styled(
                     status,
                     Style::default().fg(status_text
@@ -705,7 +716,6 @@ fn draw_list(f: &mut Frame, app: &App, area: Rect) {
         .highlight_style(
             Style::default()
                 .bg(app.theme.surface0)
-                .fg(app.theme.text)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("→ ");
@@ -870,6 +880,64 @@ mod tests {
     }
 
     #[test]
+    fn status_colors_match_herdr() {
+        let theme = Theme::load(false);
+
+        assert_eq!(agent_status_color(&theme, "blocked"), theme.red);
+        assert_eq!(agent_status_color(&theme, "working"), theme.yellow);
+        assert_eq!(agent_status_color(&theme, "done"), theme.teal);
+        assert_eq!(agent_status_color(&theme, "idle"), theme.green);
+        assert_eq!(agent_status_color(&theme, "unknown"), theme.overlay0);
+    }
+
+    #[test]
+    fn open_and_pinned_workspaces_replace_tree_branches_with_diamonds() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut current = entry(Source::Workspace, "Current");
+        current.workspace_id = Some("w1".into());
+        current.search_terms.push("focused".into());
+        let mut previous = entry(Source::Workspace, "Previous");
+        previous.workspace_id = Some("w2".into());
+        app.entries = vec![current, previous];
+        app.filtered = vec![0, 1];
+        app.filtered_scores = vec![0; 2];
+        app.previous_workspace_id = Some("w2".into());
+        app.selected = 1;
+
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
+        let text = buffer_text(&terminal);
+        let buffer = terminal.backend().buffer();
+
+        assert!(text.contains("  ◆  Current"));
+        assert!(text.contains("  ◆  Previous"));
+        assert!(!text.contains("├─ ◆"));
+        assert!(buffer
+            .content()
+            .iter()
+            .any(|cell| cell.symbol() == "◆" && cell.fg == app.theme.accent));
+        assert!(buffer
+            .content()
+            .iter()
+            .any(|cell| cell.symbol() == "◆" && cell.fg == app.theme.red));
+    }
+
+    #[test]
+    fn current_workspace_marker_wins_over_stale_pin() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut current = entry(Source::Workspace, "Current");
+        current.workspace_id = Some("w1".into());
+        current.search_terms.push("focused".into());
+        app.previous_workspace_id = Some("w1".into());
+
+        assert_eq!(
+            entry_branch(&app, &current, false),
+            ("  ◆  ", app.theme.accent)
+        );
+    }
+
+    #[test]
     fn detailed_rows_only_expand_directory_sources() {
         let mut app = App::new(Config::default(), Theme::load(false));
         let mut workspace = entry(Source::Workspace, "dir: demo");
@@ -888,7 +956,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw_list(f, &app, f.area())).unwrap();
         let text = buffer_text(&terminal);
-        let workspace_line = text.lines().find(|line| line.contains("◉ demo")).unwrap();
+        let workspace_line = text.lines().find(|line| line.contains("● demo")).unwrap();
         let agent_line = text
             .lines()
             .find(|line| line.contains("⠋ claude · demo"))
@@ -918,8 +986,14 @@ mod tests {
         let text = buffer_text(&terminal);
 
         assert!(text.contains(" ▾ agent "));
-        assert!(text.contains(&format!("  ├─ {} Claude", agent_status_icon_at("", 0))));
-        assert!(text.contains(&format!("  └─ {} Codex", agent_status_icon_at("", 0))));
+        assert!(text.contains(&format!(
+            "  ├─ {} Claude",
+            status_icon_at(&Source::Agent, "", 0)
+        )));
+        assert!(text.contains(&format!(
+            "  └─ {} Codex",
+            status_icon_at(&Source::Agent, "", 0)
+        )));
         assert!(text.contains(" ▾ root "));
         assert!(text.contains("  └─ Dotfiles"));
     }

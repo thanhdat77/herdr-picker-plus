@@ -74,14 +74,11 @@ fn workspaces_from_json(
                     pane_count,
                 });
             }
-            let mut subtitle = format!("{} tabs:{} panes:{}", id, tab_count, pane_count);
-            if agent_status != "unknown" {
-                subtitle = format!("agent:{agent_status} · {subtitle}");
-            }
-            let mut search_terms = vec![id.into(), label.into()];
-            if agent_status != "unknown" {
-                search_terms.push(agent_status.into());
-            }
+            let subtitle = format!(
+                "agent:{agent_status} · {} tabs:{} panes:{}",
+                id, tab_count, pane_count
+            );
+            let mut search_terms = vec![id.into(), label.into(), agent_status.into()];
             if focused {
                 search_terms.push("focused".into());
             }
@@ -207,7 +204,9 @@ fn agents_from_json(
 
 const AGENT_SPINNER: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-pub(crate) fn agent_status_icon_at(status: &str, tick: u32) -> &'static str {
+// Mirrors Herdr's workspace `state_dot` and agent `agent_icon` mappings.
+pub(crate) fn status_icon_at(source: &Source, status: &str, tick: u32) -> &'static str {
+    let workspace = *source == Source::Workspace;
     let status = status.to_lowercase();
     if status.contains("block")
         || status.contains("error")
@@ -216,13 +215,27 @@ pub(crate) fn agent_status_icon_at(status: &str, tick: u32) -> &'static str {
         || status.contains("request")
         || status.contains("wait")
     {
-        "◉"
+        if workspace {
+            "●"
+        } else {
+            "◉"
+        }
     } else if status.contains("work") || status.contains("run") {
-        AGENT_SPINNER[tick as usize % AGENT_SPINNER.len()]
+        if workspace {
+            "●"
+        } else {
+            AGENT_SPINNER[tick as usize % AGENT_SPINNER.len()]
+        }
     } else if status.contains("done") || status.contains("complete") {
-        "✓"
-    } else if status.contains("idle") {
         "●"
+    } else if status.contains("idle") {
+        if workspace {
+            "○"
+        } else {
+            "✓"
+        }
+    } else if workspace {
+        "·"
     } else {
         "○"
     }
@@ -308,7 +321,8 @@ mod tests {
             {"active_tab_id":"w43:t1","agent_status":"working","focused":true,"label":"dir: picker","number":3,"pane_count":1,"tab_count":1,"workspace_id":"w43"}]}});
         let (entries, _) = workspaces_from_json(&ws_json, &HashMap::new());
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].subtitle, "w41 tabs:1 panes:1");
+        assert_eq!(entries[0].subtitle, "agent:unknown · w41 tabs:1 panes:1");
+        assert!(entries[0].search_terms.contains(&"unknown".to_string()));
         assert_eq!(entries[1].subtitle, "agent:working · w43 tabs:1 panes:1");
         assert!(entries[1].search_terms.contains(&"working".to_string()));
         assert!(entries[1].search_terms.contains(&"focused".to_string()));
@@ -325,12 +339,18 @@ mod tests {
     }
 
     #[test]
-    fn agent_status_icons_match_herdr_navigator() {
-        assert_eq!(agent_status_icon_at("working", 0), "⠋");
-        assert_eq!(agent_status_icon_at("working", 1), "⠙");
-        assert_eq!(agent_status_icon_at("done", 0), "✓");
-        assert_eq!(agent_status_icon_at("blocked", 0), "◉");
-        assert_eq!(agent_status_icon_at("idle", 0), "●");
-        assert_eq!(agent_status_icon_at("unknown", 0), "○");
+    fn status_icons_match_herdr() {
+        assert_eq!(status_icon_at(&Source::Workspace, "blocked", 0), "●");
+        assert_eq!(status_icon_at(&Source::Workspace, "working", 0), "●");
+        assert_eq!(status_icon_at(&Source::Workspace, "done", 0), "●");
+        assert_eq!(status_icon_at(&Source::Workspace, "idle", 0), "○");
+        assert_eq!(status_icon_at(&Source::Workspace, "unknown", 0), "·");
+
+        assert_eq!(status_icon_at(&Source::Agent, "blocked", 0), "◉");
+        assert_eq!(status_icon_at(&Source::Agent, "working", 0), "⠋");
+        assert_eq!(status_icon_at(&Source::Agent, "working", 1), "⠙");
+        assert_eq!(status_icon_at(&Source::Agent, "done", 0), "●");
+        assert_eq!(status_icon_at(&Source::Agent, "idle", 0), "✓");
+        assert_eq!(status_icon_at(&Source::Agent, "unknown", 0), "○");
     }
 }
