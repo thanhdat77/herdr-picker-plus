@@ -50,10 +50,10 @@ herdr server reload-config
 ## See it in action
 
 <p align="center">
-  <img src="docs/assets/herdr-navigator-ui.png" alt="Herdr Navigator results for agents, workspaces, projects, and zoxide directories" width="100%" />
+  <img src="docs/assets/herdr-navigator-demo.gif" alt="Herdr Navigator switching, filtering, and opening workspaces, agents, sessions, and directories" width="100%" />
 </p>
 
-*Screenshot shown in compact mode. Herdr-style source-aware rows are the default; zoxide/root entries expand to a full-path line while other sources keep metadata aligned right.*
+*Source-aware rows keep live status, tabs, and panes aligned at a glance. [Watch the full 17-second demo.](https://github.com/thanhdat77/herdr-navigator/releases/download/v0.3.0/herdr-navigator-v0.3.0-demo.mp4)*
 
 A single result list can move between live Herdr state and things that are not open yet:
 
