@@ -255,7 +255,7 @@ pub(crate) fn keybindings(app: &App) -> Vec<Keybind> {
         ),
         binding(
             Command::ToggleMark,
-            vec![key(KeyCode::Char('m'), KeyModifiers::CONTROL, "⌃M")],
+            vec![key(KeyCode::Char('b'), KeyModifiers::CONTROL, "⌃B")],
             "mark / unmark selected",
             "Actions",
             Some("mark"),

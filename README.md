@@ -120,7 +120,7 @@ Every source can be disabled. Missing optional tools degrade quietly.
 | `Ctrl-Z` | Zoxide |
 | `Ctrl-R` | Roots |
 | `Ctrl-X` | Close the matching open workspace |
-| `Ctrl-M` | Mark or unmark the selected item |
+| `Ctrl-B` | Mark or unmark the selected item |
 | `Ctrl-O` | Toggle preview |
 | `Ctrl-U` | Clear query and filter |
 | `?` | Show active keybindings |
