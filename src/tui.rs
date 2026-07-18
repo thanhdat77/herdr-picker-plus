@@ -542,12 +542,12 @@ fn entry_branch(app: &App, entry: &Entry, group_end: bool) -> (&'static str, Col
         && app.source_filter.is_none()
         && entry.workspace_id.is_some()
         && entry.workspace_id == app.previous_workspace_id;
-    if is_current {
+    if app.is_pinned(entry) {
+        ("  ◆  ", app.theme.yellow)
+    } else if is_current {
         ("  ◆  ", app.theme.accent)
     } else if is_previous {
         ("  ◆  ", app.theme.red)
-    } else if app.is_pinned(entry) {
-        ("  ◆  ", app.theme.yellow)
     } else if group_end {
         ("  └─ ", app.theme.overlay0)
     } else {
@@ -961,7 +961,7 @@ mod tests {
     }
 
     #[test]
-    fn previous_workspace_marker_wins_over_mark() {
+    fn mark_marker_wins_over_previous_workspace() {
         let mut app = App::new(Config::default(), Theme::load(false));
         let mut previous = entry(Source::Workspace, "Previous");
         previous.workspace_id = Some("w2".into());
@@ -971,7 +971,22 @@ mod tests {
 
         assert_eq!(
             entry_branch(&app, &previous, false),
-            ("  ◆  ", app.theme.red)
+            ("  ◆  ", app.theme.yellow)
+        );
+    }
+
+    #[test]
+    fn mark_marker_wins_over_current_workspace() {
+        let mut app = App::new(Config::default(), Theme::load(false));
+        let mut current = entry(Source::Workspace, "Current");
+        current.workspace_id = Some("w1".into());
+        current.action = EntryAction::FocusWorkspace { id: "w1".into() };
+        current.search_terms.push("focused".into());
+        app.pinned_entries.insert("workspace:w1".into());
+
+        assert_eq!(
+            entry_branch(&app, &current, false),
+            ("  ◆  ", app.theme.yellow)
         );
     }
 
